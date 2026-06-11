@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.tmp
+
+# Exports
+exports/
+*.pck
+*.zip

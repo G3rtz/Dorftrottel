@@ -1,0 +1,21 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+
+config_version=5
+
+[application]
+
+config/name="Der Dorftrottel"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3")
+
+[autoload]
+
+EventBus="*res://src/autoload/event_bus.gd"
+Game="*res://src/autoload/game.gd"
+
+[display]
+
+window/size/viewport_width=960
+window/size/viewport_height=640

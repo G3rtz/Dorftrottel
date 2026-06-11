@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  tests:
+    name: Headless-Tests (Godot 4.3)
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Projekt importieren
+        # Baut den .godot-Cache inkl. Klassenregister (class_name).
+        run: godot --headless --import || true
+
+      - name: Tests ausführen
+        run: godot --headless --script res://tests/run_tests.gd

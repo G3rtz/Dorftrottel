@@ -1,0 +1,42 @@
+[
+  {
+    "id": "oma",
+    "display_name": "Mitleidige Oma",
+    "flavor": "Steckt dir heimlich ein paar Münzen zu. Du bist doch ein Guter.",
+    "resource_id": "gold",
+    "base_rate": 0.1,
+    "base_cost": 15,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 0
+  },
+  {
+    "id": "schmied",
+    "display_name": "Schmied",
+    "flavor": "Repariert deine Ausrüstung. Kostenlos – solange keiner zusieht.",
+    "resource_id": "gold",
+    "base_rate": 1.0,
+    "base_cost": 100,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 50
+  },
+  {
+    "id": "wirt",
+    "display_name": "Wirt",
+    "flavor": "Sponsert Proviant. „Der Trottel isst bei mir!“ ist gute Werbung.",
+    "resource_id": "gold",
+    "base_rate": 8.0,
+    "base_cost": 1100,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 500
+  },
+  {
+    "id": "kraemer",
+    "display_name": "Krämer",
+    "flavor": "Eröffnet einen Beutestand mit deinen Fundstücken.",
+    "resource_id": "gold",
+    "base_rate": 47.0,
+    "base_cost": 12000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 5000
+  }
+]
