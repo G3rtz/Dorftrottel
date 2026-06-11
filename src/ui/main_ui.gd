@@ -24,6 +24,14 @@ var _run_log_label: Label
 var _flee_button: Button
 var _log_lines: Array[String] = []
 
+var _saga_section: VBoxContainer
+var _fame_label: Label
+var _prestige_button: Button
+var _prestige_confirm: ConfirmationDialog
+var _prestige_result: AcceptDialog
+var _perma_buttons := {}  # upgrade_id -> Button
+var _perma_rows := {}  # upgrade_id -> Control
+
 
 func _ready() -> void:
 	_build_ui()
@@ -31,6 +39,7 @@ func _ready() -> void:
 	EventBus.run_started.connect(_on_run_started)
 	EventBus.run_tick.connect(_on_run_tick)
 	EventBus.run_finished.connect(_on_run_finished)
+	EventBus.prestige_performed.connect(_on_prestige_performed)
 
 
 func _process(_delta: float) -> void:
@@ -135,6 +144,49 @@ func _build_ui() -> void:
 	_run_panel.add_child(_flee_button)
 	vbox.add_child(_run_panel)
 
+	# Die Sage: unsichtbar, bis das erste Prestige in Reichweite ist –
+	# der Offenbarungsmoment aus dem GDD.
+	_saga_section = VBoxContainer.new()
+	_saga_section.visible = false
+	_saga_section.add_theme_constant_override("separation", 10)
+	_saga_section.add_child(HSeparator.new())
+	_saga_section.add_child(_section_label("Die Sage"))
+
+	_fame_label = Label.new()
+	_saga_section.add_child(_fame_label)
+
+	_prestige_button = Button.new()
+	_prestige_button.pressed.connect(_on_prestige_pressed)
+	_saga_section.add_child(_prestige_button)
+
+	for def in ContentDB.perma_upgrades():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var buy_button := Button.new()
+		buy_button.custom_minimum_size = Vector2(320, 0)
+		buy_button.pressed.connect(_on_buy_perma_pressed.bind(def.id))
+		row.add_child(buy_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		_saga_section.add_child(row)
+		_perma_buttons[def.id] = buy_button
+		_perma_rows[def.id] = row
+
+	vbox.add_child(_saga_section)
+
+	_prestige_confirm = ConfirmationDialog.new()
+	_prestige_confirm.title = "Die Sage neu erzählen?"
+	_prestige_confirm.ok_button_text = "Erzählt sie!"
+	_prestige_confirm.cancel_button_text = "Noch nicht"
+	_prestige_confirm.confirmed.connect(func() -> void: Game.do_prestige())
+	add_child(_prestige_confirm)
+
+	_prestige_result = AcceptDialog.new()
+	_prestige_result.title = "Die Legende wächst"
+	add_child(_prestige_result)
+
 	_offline_dialog = AcceptDialog.new()
 	_offline_dialog.title = "Willkommen zurück!"
 	add_child(_offline_dialog)
@@ -182,6 +234,25 @@ func _refresh() -> void:
 		var cleared := "✓ " if Game.state.dungeons_cleared.has(def.id) else ""
 		button.text = "%s%s betreten" % [cleared, def.display_name]
 		button.disabled = run_active
+
+	var pending := Game.state.pending_fame()
+	var revealed: bool = Game.state.prestige_count > 0 or not Game.state.fame.is_zero() or Game.state.can_prestige()
+	_saga_section.visible = revealed
+	if revealed:
+		_fame_label.text = "Ruhm: %s" % Game.state.fame.format()
+		_prestige_button.text = "Die Sage neu erzählen (+%s Ruhm)" % pending.format()
+		_prestige_button.disabled = not Game.state.can_prestige() or run_active
+		# Der Perma-Baum selbst zeigt sich erst nach dem ersten Prestige.
+		var tree_unlocked: bool = Game.state.prestige_count > 0
+		for def in ContentDB.perma_upgrades():
+			var row: Control = _perma_rows[def.id]
+			row.visible = tree_unlocked
+			if not tree_unlocked:
+				continue
+			var button: Button = _perma_buttons[def.id]
+			var cost := Game.state.perma_cost(def.id)
+			button.text = "%s (Stufe %d) – %s Ruhm" % [def.display_name, Game.state.perma_level(def.id), cost.format()]
+			button.disabled = Game.state.fame.lt(cost)
 
 	_flee_button.visible = run_active
 	if run_active:
@@ -242,6 +313,32 @@ func _append_log(line: String) -> void:
 	while _log_lines.size() > LOG_LINES:
 		_log_lines.remove_at(0)
 	_run_log_label.text = "\n".join(_log_lines)
+
+
+func _on_prestige_pressed() -> void:
+	_prestige_confirm.dialog_text = (
+		"Die Barden erzählen deine Geschichte weiter – von vorn, aber besser.\n\n"
+		+ "Es bleibt: Ruhm (+%s), der Perma-Baum, freigeschaltete Dungeons.\n" % Game.state.pending_fame().format()
+		+ "Es geht: Gold, Dorfhelfer, Training."
+	)
+	_prestige_confirm.popup_centered()
+
+
+func _on_buy_perma_pressed(upgrade_id: String) -> void:
+	Game.buy_perma(upgrade_id)
+
+
+func _on_prestige_performed(report: Dictionary) -> void:
+	var retelling := int(report.get("prestige_count", 1)) - 1
+	_prestige_result.dialog_text = "„%s“\n\n+%s Ruhm (gesamt: %s)" % [
+		ContentDB.saga_line(retelling),
+		report.get("fame_gained", BigNum.zero()).format(),
+		report.get("fame_total", BigNum.zero()).format(),
+	]
+	_prestige_result.popup_centered()
+	_run_panel.visible = false
+	_log_lines.clear()
+	_run_log_label.text = ""
 
 
 func _on_offline_progress(report: Dictionary) -> void:

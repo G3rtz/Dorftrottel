@@ -6,11 +6,17 @@ extends RefCounted
 
 const GENERATORS_PATH := "res://data/generators.json"
 const DUNGEONS_PATH := "res://data/dungeons.json"
+const PERMA_UPGRADES_PATH := "res://data/perma_upgrades.json"
+const SAGA_LINES_PATH := "res://data/saga_lines.json"
 
 static var _generators: Array[GeneratorDef] = []
 static var _generators_loaded := false
 static var _dungeons: Array[DungeonDef] = []
 static var _dungeons_loaded := false
+static var _perma_upgrades: Array[PermaUpgradeDef] = []
+static var _perma_upgrades_loaded := false
+static var _saga_lines: Array[String] = []
+static var _saga_lines_loaded := false
 
 
 static func generators() -> Array[GeneratorDef]:
@@ -39,6 +45,31 @@ static func dungeon(id: String) -> DungeonDef:
 		if def.id == id:
 			return def
 	return null
+
+
+static func perma_upgrades() -> Array[PermaUpgradeDef]:
+	if not _perma_upgrades_loaded:
+		_perma_upgrades = _load_perma_upgrades(PERMA_UPGRADES_PATH)
+		_perma_upgrades_loaded = true
+	return _perma_upgrades
+
+
+static func perma_upgrade(id: String) -> PermaUpgradeDef:
+	for def in perma_upgrades():
+		if def.id == id:
+			return def
+	return null
+
+
+## Barden-Zitate für die Prestige-Momente; eskalieren mit der Anzahl
+## der Nacherzählungen, die letzte Zeile trägt alles darüber hinaus.
+static func saga_line(retelling: int) -> String:
+	if not _saga_lines_loaded:
+		_saga_lines = _load_saga_lines(SAGA_LINES_PATH)
+		_saga_lines_loaded = true
+	if _saga_lines.is_empty():
+		return ""
+	return _saga_lines[clampi(retelling, 0, _saga_lines.size() - 1)]
 
 
 static func _load_generators(path: String) -> Array[GeneratorDef]:
@@ -99,4 +130,50 @@ static func _load_dungeons(path: String) -> Array[DungeonDef]:
 	for def in result:
 		if not def.unlocked_by.is_empty() and not seen_ids.has(def.unlocked_by):
 			push_error("ContentDB: Dungeon '%s' verweist auf unbekannten Dungeon '%s'" % [def.id, def.unlocked_by])
+	return result
+
+
+static func _load_perma_upgrades(path: String) -> Array[PermaUpgradeDef]:
+	var result: Array[PermaUpgradeDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := PermaUpgradeDef.from_dict(entry)
+		var problems := def.validate()
+		if not problems.is_empty():
+			push_error("ContentDB: Perma-Upgrade '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Perma-Upgrade-ID '%s'" % def.id)
+			continue
+		seen_ids[def.id] = true
+		result.append(def)
+	return result
+
+
+static func _load_saga_lines(path: String) -> Array[String]:
+	var result: Array[String] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	for entry: Variant in parsed:
+		if entry is String and not str(entry).is_empty():
+			result.append(str(entry))
+		else:
+			push_error("ContentDB: Saga-Zeile in %s ist kein Text: %s" % [path, entry])
 	return result

@@ -120,6 +120,30 @@ func pow_int(n: int) -> BigNum:
 	return result
 
 
+## Quadratwurzel: Exponent halbieren (nach Begradigung auf gerade),
+## Wurzel der Mantisse – funktioniert für jede Größenordnung.
+func square_root() -> BigNum:
+	if is_zero():
+		return BigNum.zero()
+	if m < 0.0:
+		push_error("BigNum: Wurzel aus negativer Zahl")
+		return BigNum.zero()
+	var mm := m
+	var ee := e
+	if ee % 2 != 0:
+		mm *= 10.0
+		ee -= 1
+	return BigNum.from_parts(sqrt(mm), int(ee / 2.0))
+
+
+## Abrunden auf die nächste Ganzzahl. Jenseits von ~10^15 trägt die
+## Mantisse ohnehin keine Nachkommastellen mehr.
+func floored() -> BigNum:
+	if is_zero() or e >= 15:
+		return copy()
+	return BigNum.from_float(floorf(to_float()))
+
+
 ## -1 / 0 / +1 wie ein klassischer Comparator. Mantissen werden
 ## näherungsweise verglichen, damit Float-Rauschen (99.999999999 vs 100)
 ## keine "kann ich mir nicht leisten"-Fehler produziert – auch über

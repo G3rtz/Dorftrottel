@@ -82,6 +82,28 @@ func test_format() -> void:
 	assert_eq(BigNum.from_float(0.5).format(), "0.5")
 
 
+func test_square_root() -> void:
+	assert_big_eq(BigNum.from_float(4.0).square_root(), BigNum.from_float(2.0))
+	assert_big_eq(BigNum.from_float(2500.0).square_root(), BigNum.from_float(50.0))
+	# Ungerader Exponent muss begradigt werden: sqrt(2.5e7) = 5000.
+	assert_big_eq(BigNum.from_parts(2.5, 7).square_root(), BigNum.from_float(5000.0))
+	# Jenseits des Float-Bereichs – der eigentliche Zweck.
+	assert_big_eq(BigNum.from_parts(1.0, 100).square_root(), BigNum.from_parts(1.0, 50))
+	assert_almost(BigNum.from_float(0.001).square_root().to_float(), sqrt(0.001), 1e-9)
+	assert_true(BigNum.zero().square_root().is_zero())
+	assert_true(BigNum.from_float(-4.0).square_root().is_zero(), "negativ -> definierte Null")
+
+
+func test_floored() -> void:
+	assert_big_eq(BigNum.from_float(3.7).floored(), BigNum.from_float(3.0))
+	assert_big_eq(BigNum.from_float(1234.99).floored(), BigNum.from_float(1234.0))
+	assert_true(BigNum.from_float(0.9).floored().is_zero())
+	assert_big_eq(BigNum.from_float(5.0).floored(), BigNum.from_float(5.0))
+	# Riesige Zahlen tragen keine Nachkommastellen mehr: unverändert.
+	var huge := BigNum.from_parts(1.23456, 40)
+	assert_big_eq(huge.floored(), huge)
+
+
 func test_serialization_roundtrip() -> void:
 	var original := BigNum.from_parts(4.2, 1337)
 	var restored := BigNum.from_dict(original.to_dict())

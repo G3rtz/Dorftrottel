@@ -95,6 +95,26 @@ func _tick_combat(delta: float) -> void:
 			_finish_run()
 
 
+## Prestige: nicht mitten in einem Run – erst fliehen oder sterben.
+func do_prestige() -> bool:
+	if is_run_active():
+		return false
+	var report := state.prestige()
+	if report.is_empty():
+		return false
+	run = null
+	save_now()
+	EventBus.prestige_performed.emit(report)
+	return true
+
+
+func buy_perma(upgrade_id: String) -> bool:
+	var bought := state.buy_perma(upgrade_id)
+	if bought:
+		save_now()
+	return bought
+
+
 func _finish_run() -> void:
 	var run_result := run.result()
 	state.bank_run_result(run_result)

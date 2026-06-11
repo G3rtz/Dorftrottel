@@ -145,6 +145,109 @@ func test_bank_run_result_on_defeat() -> void:
 	assert_eq(state.runs_completed, 0)
 
 
+func test_pending_fame_formula() -> void:
+	var state := GameState.new()
+	assert_true(state.pending_fame().is_zero(), "ohne Verdienst kein Ruhm")
+	assert_false(state.can_prestige())
+
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD - 1.0))
+	assert_true(state.pending_fame().is_zero(), "knapp unter der Basis: noch nichts")
+
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(1.0))
+	assert_almost(state.pending_fame().to_float(), 1.0, 1e-9, "genau Basis = 1 Ruhm")
+	assert_true(state.can_prestige())
+
+	# sqrt-Skalierung: 4x Basis = 2, 9x Basis = 3.
+	var rich := GameState.new()
+	rich.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD * 9.0))
+	assert_almost(rich.pending_fame().to_float(), 3.0, 1e-9)
+
+	# Ausgeben kostet keinen Ruhm: Lifetime zählt, nicht der Bestand.
+	rich.spend_resource(Balance.PRIMARY_RESOURCE, rich.get_resource(Balance.PRIMARY_RESOURCE))
+	assert_almost(rich.pending_fame().to_float(), 3.0, 1e-9)
+
+
+func test_prestige_resets_and_keeps() -> void:
+	var state := GameState.new()
+	var gen := ContentDB.generators()[0]
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD * 4.0))
+	state.generators[gen.id] = 12
+	state.hero_hp_level = 3
+	state.hero_atk_level = 5
+	state.dungeons_cleared["ratten_keller"] = true
+	state.runs_completed = 2
+	state.total_playtime = 500.0
+
+	var report := state.prestige()
+	assert_false(report.is_empty())
+	assert_almost(report["fame_gained"].to_float(), 2.0, 1e-9)
+
+	# Weg: alles Ablegbare (village + hero).
+	assert_true(state.get_resource(Balance.PRIMARY_RESOURCE).is_zero())
+	assert_true(state.get_lifetime(Balance.PRIMARY_RESOURCE).is_zero())
+	assert_eq(state.owned(gen.id), 0)
+	assert_eq(state.hero_hp_level, 0)
+	assert_eq(state.hero_atk_level, 0)
+	assert_true(state.pending_fame().is_zero(), "Ruhm-Zähler beginnt von vorn")
+
+	# Bleibt: alles im Hirn (perma + meta).
+	assert_almost(state.fame.to_float(), 2.0, 1e-9)
+	assert_true(state.dungeons_cleared.has("ratten_keller"))
+	assert_eq(state.runs_completed, 2)
+	assert_eq(state.prestige_count, 1)
+	assert_almost(state.total_playtime, 500.0)
+
+	# Ohne genug Ruhm: kein Prestige, nichts passiert.
+	var poor := GameState.new()
+	assert_true(poor.prestige().is_empty())
+	assert_eq(poor.prestige_count, 0)
+
+
+func test_perma_upgrades() -> void:
+	var state := GameState.new()
+	var upgrade := ContentDB.perma_upgrades()[0]
+	assert_false(state.buy_perma(upgrade.id), "ohne Ruhm kein Kauf")
+	assert_false(state.buy_perma("gibt_es_nicht"))
+
+	state.fame = BigNum.from_float(1000.0)
+	assert_true(state.buy_perma(upgrade.id))
+	assert_eq(state.perma_level(upgrade.id), 1)
+	assert_almost(state.fame.to_float(), 1000.0 - upgrade.base_cost, 1e-6, "Ruhm wurde abgezogen")
+	assert_almost(state.perma_cost(upgrade.id).to_float(),
+		upgrade.base_cost * upgrade.cost_growth, 1e-6, "Kosten wachsen")
+	assert_almost(state.perma_bonus(upgrade.effect), upgrade.amount_per_level, 1e-9)
+
+
+func test_perma_effects_apply() -> void:
+	# gold_mult wirkt auf die Produktion …
+	var state := GameState.new()
+	var gen := ContentDB.generators()[0]
+	state.generators[gen.id] = 10
+	var base_rate := state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	state.fame = BigNum.from_float(1000.0)
+	assert_true(state.buy_perma("vorauseilender_ruf"))
+	var boosted := state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	assert_almost(boosted / base_rate, 1.25, 1e-9, "+25% Gold pro Stufe")
+
+	# … und die Helden-Multiplikatoren auf die Werte.
+	assert_true(state.buy_perma("haertere_strophen"))
+	assert_almost(state.hero_stats()["atk"].to_float(), Balance.HERO_BASE_ATK * 1.2, 1e-6)
+	assert_true(state.buy_perma("zaeher_held_der_lieder"))
+	assert_almost(state.hero_stats()["hp"].to_float(), Balance.HERO_BASE_HP * 1.2, 1e-6)
+
+
+func test_start_gold_after_prestige() -> void:
+	var state := GameState.new()
+	state.fame = BigNum.from_float(1000.0)
+	var def := ContentDB.perma_upgrade("startvertrauen")
+	assert_true(state.buy_perma("startvertrauen"))
+	assert_true(state.buy_perma("startvertrauen"))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD))
+	state.prestige()
+	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(),
+		def.amount_per_level * 2.0, 1e-6, "neue Sage startet mit Startvertrauen")
+
+
 func test_serialization_roundtrip() -> void:
 	var state := GameState.new()
 	var def := _first_def()
@@ -157,6 +260,8 @@ func test_serialization_roundtrip() -> void:
 	state.hero_atk_level = 9
 	state.dungeons_cleared["ratten_keller"] = true
 	state.runs_completed = 6
+	state.fame = BigNum.from_float(42.0)
+	state.perma_levels["vorauseilender_ruf"] = 3
 
 	var restored := GameState.from_dict(state.to_dict())
 	assert_big_eq(restored.get_resource("gold"), state.get_resource("gold"))
@@ -168,6 +273,8 @@ func test_serialization_roundtrip() -> void:
 	assert_eq(restored.hero_atk_level, 9)
 	assert_true(restored.dungeons_cleared.has("ratten_keller"))
 	assert_eq(restored.runs_completed, 6)
+	assert_big_eq(restored.fame, BigNum.from_float(42.0))
+	assert_eq(restored.perma_level("vorauseilender_ruf"), 3)
 
 	# Durch JSON hindurch (Ints werden Floats) muss es ebenfalls überleben.
 	var json_text := JSON.stringify(state.to_dict())

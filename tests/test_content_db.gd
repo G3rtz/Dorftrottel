@@ -42,6 +42,21 @@ func test_dungeons_load() -> void:
 	assert_eq(ContentDB.dungeon("gibt_es_nicht"), null)
 
 
+func test_perma_upgrades_load() -> void:
+	var defs := ContentDB.perma_upgrades()
+	assert_true(defs.size() >= 1, "mindestens ein Perma-Upgrade definiert")
+	for def in defs:
+		assert_true(def.validate().is_empty(), "Perma-Upgrade '%s' ist gültig" % def.id)
+	assert_true(ContentDB.perma_upgrade(defs[0].id) != null)
+	assert_eq(ContentDB.perma_upgrade("gibt_es_nicht"), null)
+
+
+func test_saga_lines_load() -> void:
+	assert_false(ContentDB.saga_line(0).is_empty(), "erste Nacherzählung hat einen Text")
+	assert_false(ContentDB.saga_line(9999).is_empty(), "jenseits der Liste trägt die letzte Zeile")
+	assert_eq(ContentDB.saga_line(9999), ContentDB.saga_line(99999), "Eskalation klemmt am Ende fest")
+
+
 ## Balance-Wächter: Diese Tests simulieren echte Runs mit den echten
 ## Daten. Wer data/dungeons.json oder die Heldenwerte kaputt-balanced,
 ## bricht hier die CI – nicht erst das Spielgefühl.

@@ -18,6 +18,8 @@ var hero_atk_level := 0
 
 # perma-Sektion: überlebt das Prestige ("alles im Hirn bleibt").
 var dungeons_cleared := {}  # dungeon_id -> true
+var fame := BigNum.zero()   # Ruhm / Legendenpunkte (Prestige-Währung)
+var perma_levels := {}      # perma_upgrade_id -> int
 
 # meta-Sektion.
 var total_playtime := 0.0
@@ -57,6 +59,8 @@ func production_per_second(resource_id: String) -> BigNum:
 	for def in ContentDB.generators():
 		if def.resource_id == resource_id:
 			total = total.add(def.rate_for(owned(def.id)))
+	if resource_id == Balance.PRIMARY_RESOURCE:
+		total = total.mul(BigNum.from_float(1.0 + perma_bonus("gold_mult")))
 	return total
 
 
@@ -111,9 +115,11 @@ func is_generator_visible(def: GeneratorDef) -> bool:
 ## Runs berechnet werden – Talente, Ausrüstung und Perma-Boni docken
 ## später hier an (analog zu production_per_second für die Idle-Seite).
 func hero_stats() -> Dictionary:
+	var hp := Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING * float(hero_hp_level)
+	var atk := Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING * float(hero_atk_level)
 	return {
-		"hp": BigNum.from_float(Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING * float(hero_hp_level)),
-		"atk": BigNum.from_float(Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING * float(hero_atk_level)),
+		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult"))),
+		"atk": BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult"))),
 	}
 
 
@@ -157,6 +163,80 @@ func bank_run_result(result: Dictionary) -> void:
 		runs_completed += 1
 
 
+## Summierter Effektwert aller Perma-Upgrades eines Typs
+## (z.B. "gold_mult" -> 0.5 bei zwei Stufen à 0.25).
+func perma_bonus(effect: String) -> float:
+	var total := 0.0
+	for def in ContentDB.perma_upgrades():
+		if def.effect == effect:
+			total += def.amount_per_level * float(perma_level(def.id))
+	return total
+
+
+func perma_level(upgrade_id: String) -> int:
+	return int(perma_levels.get(upgrade_id, 0))
+
+
+func perma_cost(upgrade_id: String) -> BigNum:
+	var def := ContentDB.perma_upgrade(upgrade_id)
+	if def == null:
+		return BigNum.zero()
+	return def.cost_for(perma_level(upgrade_id))
+
+
+func buy_perma(upgrade_id: String) -> bool:
+	var def := ContentDB.perma_upgrade(upgrade_id)
+	if def == null:
+		return false
+	var cost := perma_cost(upgrade_id)
+	if fame.lt(cost):
+		return false
+	fame = fame.sub(cost)
+	perma_levels[upgrade_id] = perma_level(upgrade_id) + 1
+	return true
+
+
+## Ruhm, den die aktuelle Sage beim Prestige einbringen würde.
+## Basis ist das je verdiente Gold dieser Sage (nicht der Bestand) –
+## Ausgeben kostet keinen Ruhm.
+func pending_fame() -> BigNum:
+	var lifetime := get_lifetime(Balance.PRIMARY_RESOURCE)
+	var ratio := lifetime.div(BigNum.from_float(Balance.FAME_BASE_GOLD))
+	if ratio.cmp(BigNum.one()) < 0:
+		return BigNum.zero()
+	return ratio.square_root().floored()
+
+
+func can_prestige() -> bool:
+	return pending_fame().cmp(BigNum.one()) >= 0
+
+
+## Die Barden erzählen die Sage neu: village- und hero-Sektion werden
+## geleert, perma und meta bleiben. Gibt einen Bericht zurück, oder {}
+## wenn noch nicht genug Ruhm zusammengekommen ist.
+func prestige() -> Dictionary:
+	var gained := pending_fame()
+	if gained.cmp(BigNum.one()) < 0:
+		return {}
+	fame = fame.add(gained)
+	prestige_count += 1
+	# Ablegbares zurücksetzen (village + hero).
+	resources = {}
+	lifetime_earned = {}
+	generators = {}
+	hero_hp_level = 0
+	hero_atk_level = 0
+	# Startboni der neuen Sage ("beschleunigen, nie skippen").
+	var start_gold := perma_bonus("start_gold")
+	if start_gold > 0.0:
+		add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(start_gold))
+	return {
+		"fame_gained": gained,
+		"fame_total": fame,
+		"prestige_count": prestige_count,
+	}
+
+
 ## Offline-Fortschritt: gedeckelt und mit konfigurierbarem Wirkungsgrad.
 ## Negative Zeitdifferenzen (Systemuhr zurückgestellt) werden ignoriert.
 static func apply_offline(state: GameState, elapsed_seconds: float) -> Dictionary:
@@ -188,6 +268,8 @@ func to_dict() -> Dictionary:
 		},
 		"perma": {
 			"dungeons_cleared": dungeons_cleared.duplicate(),
+			"fame": fame.to_dict(),
+			"perma_levels": perma_levels.duplicate(),
 		},
 		"meta": {
 			"total_playtime": total_playtime,
@@ -216,6 +298,10 @@ static func from_dict(data: Dictionary) -> GameState:
 	var cleared: Dictionary = perma.get("dungeons_cleared", {})
 	for id: String in cleared:
 		state.dungeons_cleared[id] = true
+	state.fame = BigNum.from_dict(perma.get("fame", {}))
+	var levels: Dictionary = perma.get("perma_levels", {})
+	for id: String in levels:
+		state.perma_levels[id] = int(levels[id])
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))

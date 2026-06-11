@@ -131,6 +131,33 @@ Daten aus `data/dungeons.json` und beweisen: Dungeon 1 ist mit
 Basiswerten schaffbar, Dungeon 2 erst mit Training (aber mit
 vertretbar viel). Balance-Edits, die das brechen, scheitern in CI.
 
+## Prestige: Die Barden-Sage (v1)
+
+**Ruhm-Formel** (GDD §8 beantwortet):
+`Ruhm = floor(sqrt(Lifetime-Gold dieser Sage / FAME_BASE_GOLD))`.
+Sublinear, damit häufiges Prestigen ohne echten Fortschritt nichts
+bringt; Lifetime statt Bestand, damit Ausgeben keinen Ruhm kostet.
+Erst ab 1 Ruhm ist Prestige möglich.
+
+`GameState.prestige()` setzt um, was das Save-Format von Anfang an
+versprochen hat: `village` (Ressourcen, Lifetime, Generatoren) und
+`hero` (Training) werden geleert; `perma` (Ruhm, Perma-Stufen,
+Dungeon-Freischaltungen) und `meta` (Zähler, Spielzeit) bleiben.
+
+**Perma-Upgrades** (`data/perma_upgrades.json`) sind der "Mehr, mehr,
+mehr"-Baum: Gold-Multiplikator, Helden-Multiplikatoren, Startgold.
+Die Designregel "beschleunigen, nie skippen" ist technisch erzwungen:
+`PermaUpgradeDef.validate()` lehnt jeden Effekt ab, der nicht in der
+Whitelist der Multiplikator-/Startbonus-Typen steht. Die Effekte
+docken genau an den zwei vorgesehenen Stellen an
+(`production_per_second()` und `hero_stats()`).
+
+**Gestaffeltes Freischalten** (GDD §3) lebt in der UI: Der
+Sage-Bereich ist unsichtbar, bis das erste Prestige in Reichweite
+ist; der Perma-Baum zeigt sich erst *nach* dem ersten Prestige –
+der Offenbarungsmoment. Die Barden-Zitate der Nacherzählungen
+eskalieren über `data/saga_lines.json`.
+
 ## Tests & CI
 
 ```sh
@@ -152,8 +179,6 @@ neue Spiellogik kommt **mit Tests**, sonst ist sie nicht fertig.
   `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
   an – das sind bereits die einzigen Orte, an denen Raten und Werte
   berechnet werden.
-- **Prestige:** `GameState.prestige()` = `village`/`hero` neu aufbauen,
-  `perma`/`meta` behalten. Das Save-Format kann das schon.
 - **Crafting/Rezepte:** Drops aus Runs landen in der perma-Sektion,
   Material kommt aus dem Dorf – die "goldene Regel" der
   Loop-Verzahnung. Training ist nur der Platzhalter dafür.

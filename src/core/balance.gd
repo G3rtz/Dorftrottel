@@ -38,3 +38,8 @@ const HERO_HP_PER_TRAINING := 12.0
 const HERO_ATK_PER_TRAINING := 2.0
 const TRAINING_BASE_COST := 30.0
 const TRAINING_COST_GROWTH := 1.18
+
+## Prestige: Ruhm = floor(sqrt(Lifetime-Gold dieser Sage / Basis)).
+## Sublinear, damit häufiges Prestigen ohne Fortschritt nichts bringt:
+## 1 Ruhm bei Basis, 2 bei 4x, 3 bei 9x, 10 bei 100x.
+const FAME_BASE_GOLD := 50000.0

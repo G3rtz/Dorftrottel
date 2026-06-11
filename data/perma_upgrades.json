@@ -1,0 +1,38 @@
+[
+  {
+    "id": "vorauseilender_ruf",
+    "display_name": "Vorauseilender Ruf",
+    "flavor": "Das Dorf glaubt schneller an einen, von dem es schon Lieder gibt.",
+    "effect": "gold_mult",
+    "amount_per_level": 0.25,
+    "base_cost": 1,
+    "cost_growth": 1.5
+  },
+  {
+    "id": "haertere_strophen",
+    "display_name": "Härtere Strophen",
+    "flavor": "Die Legende eilt voraus – und schlägt mit zu.",
+    "effect": "hero_atk_mult",
+    "amount_per_level": 0.2,
+    "base_cost": 1,
+    "cost_growth": 1.6
+  },
+  {
+    "id": "zaeher_held_der_lieder",
+    "display_name": "Zäher Held der Lieder",
+    "flavor": "In keiner Version der Sage stirbt er im zweiten Raum.",
+    "effect": "hero_hp_mult",
+    "amount_per_level": 0.2,
+    "base_cost": 1,
+    "cost_growth": 1.6
+  },
+  {
+    "id": "startvertrauen",
+    "display_name": "Startvertrauen",
+    "flavor": "Wer berühmt ankommt, muss nicht bei null betteln.",
+    "effect": "start_gold",
+    "amount_per_level": 50,
+    "base_cost": 2,
+    "cost_growth": 2.0
+  }
+]

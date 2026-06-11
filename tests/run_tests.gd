@@ -10,6 +10,7 @@ const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_generator_def.gd",
 	"res://tests/test_dungeon_def.gd",
 	"res://tests/test_run_state.gd",
+	"res://tests/test_perma_upgrade_def.gd",
 	"res://tests/test_content_db.gd",
 	"res://tests/test_game_state.gd",
 	"res://tests/test_save_io.gd",
