@@ -7,9 +7,14 @@ extends Node
 
 var state := GameState.new()
 
+## Der aktuelle (oder zuletzt beendete) Run. Läuft nicht offline weiter
+## und überlebt kein Beenden der App – Runs sind die aktive Schicht.
+var run: RunState = null
+
 var _save_io := SaveIO.new()
 var _tick_accumulator := 0.0
 var _autosave_accumulator := 0.0
+var _combat_accumulator := 0.0
 
 
 func _ready() -> void:
@@ -26,6 +31,7 @@ func _process(delta: float) -> void:
 	while _tick_accumulator >= Balance.TICK_SECONDS:
 		state.advance(Balance.TICK_SECONDS)
 		_tick_accumulator -= Balance.TICK_SECONDS
+	_tick_combat(delta)
 	_autosave_accumulator += delta
 	if _autosave_accumulator >= Balance.AUTOSAVE_INTERVAL_SECONDS:
 		_autosave_accumulator = 0.0
@@ -49,6 +55,51 @@ func buy_generator(generator_id: String, count: int = 1) -> bool:
 	if purchased:
 		EventBus.generator_purchased.emit(generator_id, state.owned(generator_id))
 	return purchased
+
+
+func train(kind: String) -> bool:
+	return state.train(kind)
+
+
+func is_run_active() -> bool:
+	return run != null and run.status == RunState.Status.ACTIVE
+
+
+func start_run(dungeon_id: String) -> bool:
+	if is_run_active():
+		return false
+	var def := ContentDB.dungeon(dungeon_id)
+	if def == null or not state.is_dungeon_unlocked(def):
+		return false
+	run = RunState.start(def, state.hero_stats())
+	_combat_accumulator = 0.0
+	EventBus.run_started.emit(def.id)
+	return true
+
+
+func flee_run() -> void:
+	if is_run_active():
+		run.flee()
+		_finish_run()
+
+
+func _tick_combat(delta: float) -> void:
+	if not is_run_active():
+		return
+	_combat_accumulator += delta
+	while _combat_accumulator >= Balance.COMBAT_TICK_SECONDS and is_run_active():
+		_combat_accumulator -= Balance.COMBAT_TICK_SECONDS
+		var events := run.step()
+		EventBus.run_tick.emit(events)
+		if run.status != RunState.Status.ACTIVE:
+			_finish_run()
+
+
+func _finish_run() -> void:
+	var run_result := run.result()
+	state.bank_run_result(run_result)
+	save_now()
+	EventBus.run_finished.emit(run_result)
 
 
 func save_now() -> void:

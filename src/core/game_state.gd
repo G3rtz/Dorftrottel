@@ -11,8 +11,18 @@ extends RefCounted
 var resources := {}        # resource_id -> BigNum (aktueller Bestand)
 var lifetime_earned := {}  # resource_id -> BigNum (insgesamt je verdient; treibt Freischaltungen)
 var generators := {}       # generator_id -> int (Anzahl besessen)
+
+# hero-Sektion: resettet beim Prestige.
+var hero_hp_level := 0
+var hero_atk_level := 0
+
+# perma-Sektion: überlebt das Prestige ("alles im Hirn bleibt").
+var dungeons_cleared := {}  # dungeon_id -> true
+
+# meta-Sektion.
 var total_playtime := 0.0
 var prestige_count := 0
+var runs_completed := 0
 
 
 func get_resource(id: String) -> BigNum:
@@ -97,6 +107,56 @@ func is_generator_visible(def: GeneratorDef) -> bool:
 	return get_lifetime(def.resource_id).gte(BigNum.from_float(def.unlock_at_lifetime))
 
 
+## Heldenwerte aus Basis + Training. Der einzige Ort, an dem Werte für
+## Runs berechnet werden – Talente, Ausrüstung und Perma-Boni docken
+## später hier an (analog zu production_per_second für die Idle-Seite).
+func hero_stats() -> Dictionary:
+	return {
+		"hp": BigNum.from_float(Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING * float(hero_hp_level)),
+		"atk": BigNum.from_float(Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING * float(hero_atk_level)),
+	}
+
+
+func training_level(kind: String) -> int:
+	return hero_hp_level if kind == "hp" else hero_atk_level
+
+
+func training_cost(kind: String) -> BigNum:
+	var level := training_level(kind)
+	var log_growth := log(Balance.TRAINING_COST_GROWTH) / log(10.0)
+	return BigNum.from_float(Balance.TRAINING_BASE_COST).mul(BigNum.from_log10(float(level) * log_growth))
+
+
+## v1-Brücke "Idle finanziert Runs": Gold gegen permanente (bis zum
+## Prestige) Heldenwerte.
+func train(kind: String) -> bool:
+	if kind != "hp" and kind != "atk":
+		return false
+	if not spend_resource(Balance.PRIMARY_RESOURCE, training_cost(kind)):
+		return false
+	if kind == "hp":
+		hero_hp_level += 1
+	else:
+		hero_atk_level += 1
+	return true
+
+
+func is_dungeon_unlocked(def: DungeonDef) -> bool:
+	return def.unlocked_by.is_empty() or dungeons_cleared.has(def.unlocked_by)
+
+
+## Verbucht das Ergebnis eines beendeten Runs: Beute bleibt immer
+## (auch bei Tod/Flucht), nur der Sieg schaltet den Dungeon dauerhaft
+## frei – das ist die "im Hirn"-Regel aus dem GDD.
+func bank_run_result(result: Dictionary) -> void:
+	var gold: BigNum = result.get("gold", BigNum.zero())
+	if not gold.is_zero():
+		add_resource(Balance.PRIMARY_RESOURCE, gold)
+	if result.get("victory", false):
+		dungeons_cleared[str(result.get("dungeon_id", ""))] = true
+		runs_completed += 1
+
+
 ## Offline-Fortschritt: gedeckelt und mit konfigurierbarem Wirkungsgrad.
 ## Negative Zeitdifferenzen (Systemuhr zurückgestellt) werden ignoriert.
 static func apply_offline(state: GameState, elapsed_seconds: float) -> Dictionary:
@@ -122,11 +182,17 @@ func to_dict() -> Dictionary:
 			"lifetime_earned": serialized_lifetime,
 			"generators": generators.duplicate(),
 		},
-		"hero": {},
-		"perma": {},
+		"hero": {
+			"hp_level": hero_hp_level,
+			"atk_level": hero_atk_level,
+		},
+		"perma": {
+			"dungeons_cleared": dungeons_cleared.duplicate(),
+		},
 		"meta": {
 			"total_playtime": total_playtime,
 			"prestige_count": prestige_count,
+			"runs_completed": runs_completed,
 		},
 	}
 
@@ -143,7 +209,15 @@ static func from_dict(data: Dictionary) -> GameState:
 	var serialized_generators: Dictionary = village.get("generators", {})
 	for id: String in serialized_generators:
 		state.generators[id] = int(serialized_generators[id])
+	var hero: Dictionary = data.get("hero", {})
+	state.hero_hp_level = int(hero.get("hp_level", 0))
+	state.hero_atk_level = int(hero.get("atk_level", 0))
+	var perma: Dictionary = data.get("perma", {})
+	var cleared: Dictionary = perma.get("dungeons_cleared", {})
+	for id: String in cleared:
+		state.dungeons_cleared[id] = true
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))
+	state.runs_completed = int(meta.get("runs_completed", 0))
 	return state

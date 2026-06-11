@@ -24,3 +24,17 @@ const OFFLINE_EFFICIENCY := 1.0
 const PRIMARY_RESOURCE := "gold"
 
 const MANUAL_WORK_AMOUNT := 1.0
+
+## Kampf: Sekunden zwischen zwei Kampf-Ticks (rein darstellerisch –
+## die Simulation selbst ist tickzahl-, nicht zeitbasiert).
+const COMBAT_TICK_SECONDS := 0.4
+
+## Held: Basiswerte plus linearer Zuwachs pro Trainingsstufe.
+## Training ist die v1-Brücke "Idle finanziert Runs" und resettet
+## beim Prestige (hero-Sektion).
+const HERO_BASE_HP := 60.0
+const HERO_BASE_ATK := 8.0
+const HERO_HP_PER_TRAINING := 12.0
+const HERO_ATK_PER_TRAINING := 2.0
+const TRAINING_BASE_COST := 30.0
+const TRAINING_COST_GROWTH := 1.18

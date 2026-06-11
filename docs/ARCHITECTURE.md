@@ -97,6 +97,40 @@ Die Kernressource heißt vorläufig `gold` und wird ausschließlich über
 `Balance.PRIMARY_RESOURCE` referenziert – die Benennung ist laut GDD
 noch offen und damit eine Ein-Zeilen-Änderung.
 
+## Dungeon-Runs (v1)
+
+`RunState` (core) ist eine rein deterministische Simulation: ein
+`step()` = ein Kampf-Tick, der Held schlägt zuerst, ein sterbender
+Gegner schlägt nicht mehr zurück. Die Engine (`Game`) ruft `step()`
+nur im Takt von `Balance.COMBAT_TICK_SECONDS` auf – Tempo ist
+Darstellung, nicht Logik. Dadurch sind komplette Runs in Tests
+nachrechenbar.
+
+**v1-Entscheidungen** (offene Fragen aus dem GDD §8):
+
+- **Run-Länge:** kurz – `rooms` Räume + Bossraum, beim ersten Dungeon
+  ~10–15 Sekunden. Aktives Spielen soll snackbar sein.
+- **Tod:** beendet den Run, gesammelte Beute **bleibt** (kein
+  Frust-Reset), nur Boss-Belohnung und Abschluss-Bonus entfallen.
+  Fliehen geht jederzeit mit demselben Effekt.
+- **Permanenz:** nur der **Sieg** schreibt in die perma-Sektion
+  (`dungeons_cleared`) – das schaltet per `unlocked_by`-Kette weitere
+  Dungeons frei (Rattenkeller → Eishöhle, das GDD-Beispiel) und
+  überlebt später das Prestige ("im Hirn").
+- **Kein Persistieren laufender Runs:** App zu = Run vorbei. Runs sind
+  die aktive Schicht; sie laufen auch nicht offline weiter.
+
+**Training** ist die v1-Brücke "Idle finanziert Runs": Gold gegen
+Heldenwerte (`hero_hp_level`/`hero_atk_level`, hero-Sektion, resettet
+beim Prestige). `GameState.hero_stats()` ist der einzige Ort, an dem
+Heldenwerte berechnet werden – Talente und Ausrüstung docken später
+dort an, analog zu `production_per_second()` auf der Idle-Seite.
+
+**Balance-Wächter in CI:** Tests simulieren echte Runs mit den echten
+Daten aus `data/dungeons.json` und beweisen: Dungeon 1 ist mit
+Basiswerten schaffbar, Dungeon 2 erst mit Training (aber mit
+vertretbar viel). Balance-Edits, die das brechen, scheitern in CI.
+
 ## Tests & CI
 
 ```sh
@@ -114,12 +148,14 @@ neue Spiellogik kommt **mit Tests**, sonst ist sie nicht fertig.
 
 ## Bewusst noch nicht gebaut
 
-- **Dungeon-Runs:** bekommen ein eigenes core-Modul (`run_state.gd` o.ä.),
-  das in die `hero`-Sektion serialisiert.
 - **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /
-  `production_per_second()` an – die Stellen sind bereits die einzigen
-  Orte, an denen Raten berechnet werden.
+  `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
+  an – das sind bereits die einzigen Orte, an denen Raten und Werte
+  berechnet werden.
 - **Prestige:** `GameState.prestige()` = `village`/`hero` neu aufbauen,
   `perma`/`meta` behalten. Das Save-Format kann das schon.
+- **Crafting/Rezepte:** Drops aus Runs landen in der perma-Sektion,
+  Material kommt aus dem Dorf – die "goldene Regel" der
+  Loop-Verzahnung. Training ist nur der Platzhalter dafür.
 - **Die UI** ist ein bewusst hässlicher Code-Prototyp; sie wird durch
   echte Szenen ersetzt, sobald Gameplay steht.

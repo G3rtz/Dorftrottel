@@ -120,9 +120,9 @@ Klassen sind teuer (eigene Talente, Ausrüstungslogik, Balancing – multiplizie
 
 ## 8. Offene Fragen / Nächste Schritte
 
-- [ ] Kernressourcen konkret benennen (Währung? Material-Typen?)
-- [ ] Ersten Dungeon-Loop skizzieren (Run-Länge? Tod = ?)
-- [ ] Erste 10 Dorf-Generatoren mit Bewohner-Flavor auflisten
+- [ ] Kernressourcen konkret benennen (Währung? Material-Typen?) – *Platzhalter „Gold" läuft, Umbenennung ist eine Ein-Zeilen-Änderung*
+- [x] Ersten Dungeon-Loop skizzieren → *v1 gebaut: Räume + Boss, Tod = Run endet & Beute bleibt, Sieg schaltet dauerhaft frei (Details in ARCHITECTURE.md)*
+- [ ] Erste 10 Dorf-Generatoren mit Bewohner-Flavor auflisten – *4 von 10 in data/generators.json*
 - [ ] Prestige-Formel (Ruhm-Gewinn) grob festlegen
-- [ ] Godot-Projekt aufsetzen, Save-System mit Offline-Progress als erstes Modul
+- [x] Godot-Projekt aufsetzen, Save-System mit Offline-Progress als erstes Modul
 - [ ] Namens-Brainstorming (Arbeitstitel: „Der Dorftrottel")

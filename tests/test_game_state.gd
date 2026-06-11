@@ -91,6 +91,60 @@ func test_offline_progress() -> void:
 	assert_almost(float(negative_report["seconds"]), 0.0, 1e-9)
 
 
+func test_training() -> void:
+	var state := GameState.new()
+	var base_stats := state.hero_stats()
+	assert_almost(base_stats["hp"].to_float(), Balance.HERO_BASE_HP)
+	assert_almost(base_stats["atk"].to_float(), Balance.HERO_BASE_ATK)
+
+	assert_false(state.train("hp"), "pleite = kein Training")
+	assert_false(state.train("quatsch"), "unbekannte Art")
+
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(1000000.0))
+	var first_cost := state.training_cost("hp")
+	assert_almost(first_cost.to_float(), Balance.TRAINING_BASE_COST)
+	assert_true(state.train("hp"))
+	assert_eq(state.hero_hp_level, 1)
+	assert_almost(state.hero_stats()["hp"].to_float(), Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING)
+	assert_almost(state.training_cost("hp").to_float(),
+		Balance.TRAINING_BASE_COST * Balance.TRAINING_COST_GROWTH, 1e-6, "Kosten wachsen geometrisch")
+	assert_almost(state.training_cost("atk").to_float(),
+		Balance.TRAINING_BASE_COST, 1e-6, "Stränge haben getrennte Stufen")
+
+	assert_true(state.train("atk"))
+	assert_almost(state.hero_stats()["atk"].to_float(), Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING)
+
+
+func test_dungeon_unlock_chain() -> void:
+	var state := GameState.new()
+	var dungeons := ContentDB.dungeons()
+	assert_true(state.is_dungeon_unlocked(dungeons[0]), "erster Dungeon sofort frei")
+	if dungeons.size() < 2:
+		return
+	var second := dungeons[1]
+	assert_false(state.is_dungeon_unlocked(second), "zweiter Dungeon anfangs gesperrt")
+	state.bank_run_result({
+		"dungeon_id": second.unlocked_by,
+		"victory": true,
+		"gold": BigNum.from_float(60.0),
+	})
+	assert_true(state.is_dungeon_unlocked(second), "Sieg schaltet die Kette frei")
+	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(), 60.0, 1e-6, "Beute verbucht")
+	assert_eq(state.runs_completed, 1)
+
+
+func test_bank_run_result_on_defeat() -> void:
+	var state := GameState.new()
+	state.bank_run_result({
+		"dungeon_id": "ratten_keller",
+		"victory": false,
+		"gold": BigNum.from_float(12.0),
+	})
+	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(), 12.0, 1e-6, "Beute bleibt bei Tod")
+	assert_false(state.dungeons_cleared.has("ratten_keller"), "kein Sieg, keine Freischaltung")
+	assert_eq(state.runs_completed, 0)
+
+
 func test_serialization_roundtrip() -> void:
 	var state := GameState.new()
 	var def := _first_def()
@@ -99,6 +153,10 @@ func test_serialization_roundtrip() -> void:
 	state.generators[def.id] = 17
 	state.total_playtime = 123.5
 	state.prestige_count = 3
+	state.hero_hp_level = 4
+	state.hero_atk_level = 9
+	state.dungeons_cleared["ratten_keller"] = true
+	state.runs_completed = 6
 
 	var restored := GameState.from_dict(state.to_dict())
 	assert_big_eq(restored.get_resource("gold"), state.get_resource("gold"))
@@ -106,6 +164,10 @@ func test_serialization_roundtrip() -> void:
 	assert_eq(restored.owned(def.id), 17)
 	assert_almost(restored.total_playtime, 123.5)
 	assert_eq(restored.prestige_count, 3)
+	assert_eq(restored.hero_hp_level, 4)
+	assert_eq(restored.hero_atk_level, 9)
+	assert_true(restored.dungeons_cleared.has("ratten_keller"))
+	assert_eq(restored.runs_completed, 6)
 
 	# Durch JSON hindurch (Ints werden Floats) muss es ebenfalls überleben.
 	var json_text := JSON.stringify(state.to_dict())
