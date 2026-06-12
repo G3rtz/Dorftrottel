@@ -23,7 +23,8 @@
     ],
     "boss_drops": [
       { "item_id": "rattenkrone", "chance": 1.0 },
-      { "item_id": "lied_vom_keller", "chance": 0.35 }
+      { "item_id": "lied_vom_keller", "chance": 0.35 },
+      { "item_id": "rezept_rattenfaenger", "chance": 0.4 }
     ]
   },
   {
@@ -50,7 +51,8 @@
     ],
     "boss_drops": [
       { "item_id": "golemherz", "chance": 1.0 },
-      { "item_id": "lied_vom_ewigen_eis", "chance": 0.35 }
+      { "item_id": "lied_vom_ewigen_eis", "chance": 0.35 },
+      { "item_id": "rezept_eispanzer", "chance": 0.4 }
     ]
   }
 ]

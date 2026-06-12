@@ -9,6 +9,7 @@ const DUNGEONS_PATH := "res://data/dungeons.json"
 const PERMA_UPGRADES_PATH := "res://data/perma_upgrades.json"
 const SAGA_LINES_PATH := "res://data/saga_lines.json"
 const ITEMS_PATH := "res://data/items.json"
+const RECIPES_PATH := "res://data/recipes.json"
 
 static var _generators: Array[GeneratorDef] = []
 static var _generators_loaded := false
@@ -20,6 +21,8 @@ static var _saga_lines: Array[String] = []
 static var _saga_lines_loaded := false
 static var _items: Array[ItemDef] = []
 static var _items_loaded := false
+static var _recipes: Array[RecipeDef] = []
+static var _recipes_loaded := false
 
 
 static func generators() -> Array[GeneratorDef]:
@@ -59,6 +62,20 @@ static func items() -> Array[ItemDef]:
 
 static func item(id: String) -> ItemDef:
 	for def in items():
+		if def.id == id:
+			return def
+	return null
+
+
+static func recipes() -> Array[RecipeDef]:
+	if not _recipes_loaded:
+		_recipes = _load_recipes(RECIPES_PATH)
+		_recipes_loaded = true
+	return _recipes
+
+
+static func recipe(id: String) -> RecipeDef:
+	for def in recipes():
 		if def.id == id:
 			return def
 	return null
@@ -152,6 +169,49 @@ static func _load_dungeons(path: String) -> Array[DungeonDef]:
 				var item_id := str(entry.get("item_id", ""))
 				if item(item_id) == null:
 					push_error("ContentDB: Dungeon '%s' droppt unbekanntes Item '%s'" % [def.id, item_id])
+	return result
+
+
+static func _load_recipes(path: String) -> Array[RecipeDef]:
+	var result: Array[RecipeDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := RecipeDef.from_dict(entry)
+		var problems := def.validate()
+		if not problems.is_empty():
+			push_error("ContentDB: Rezept '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Rezept-ID '%s'" % def.id)
+			continue
+		seen_ids[def.id] = true
+		result.append(def)
+	# Querverweise: Material muss existieren, und jedes Rezept, das
+	# nicht von Anfang an bekannt ist, braucht ein gleichnamiges
+	# Rezept-Item, über das es droppen kann.
+	for def in result:
+		for item_id: String in def.cost_items:
+			if item(item_id) == null:
+				push_error("ContentDB: Rezept '%s' braucht unbekanntes Material '%s'" % [def.id, item_id])
+		if not def.known_from_start:
+			var teach := item(def.id)
+			if teach == null or not teach.is_recipe():
+				push_error("ContentDB: Rezept '%s' ist nicht lernbar (kein Rezept-Item)" % def.id)
+	# Gegenrichtung: jedes Rezept-Item muss ein echtes Rezept lehren.
+	for item_def in items():
+		if item_def.is_recipe() and not seen_ids.has(item_def.id):
+			push_error("ContentDB: Rezept-Item '%s' lehrt ein unbekanntes Rezept" % item_def.id)
 	return result
 
 

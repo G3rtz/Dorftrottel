@@ -1,13 +1,15 @@
 class_name ItemDef
 extends RefCounted
 
-## Definition eines Drops. Zwei Welten, wie im GDD:
+## Definition eines Drops. Drei Welten, wie im GDD:
 ## - "trophy": vergängliche Beute, landet im Dorf-Inventar, wird
-##   verkauft (später: Crafting-Material). Weg beim Prestige.
+##   verkauft oder verschmiedet (Crafting-Material). Weg beim Prestige.
 ## - "song_fragment": Liedfragmente – "im Hirn", landen in der
 ##   perma-Sektion und überleben das Prestige. Vorstufe zu Klassen.
+## - "recipe": Rezept-Wissen – "im Hirn", schaltet das gleichnamige
+##   Rezept aus data/recipes.json dauerhaft frei.
 
-const KNOWN_TYPES: Array[String] = ["trophy", "song_fragment"]
+const KNOWN_TYPES: Array[String] = ["trophy", "song_fragment", "recipe"]
 
 var id: String = ""
 var display_name: String = ""
@@ -28,6 +30,10 @@ static func from_dict(data: Dictionary) -> ItemDef:
 
 func is_song_fragment() -> bool:
 	return type == "song_fragment"
+
+
+func is_recipe() -> bool:
+	return type == "recipe"
 
 
 func validate() -> PackedStringArray:

@@ -34,6 +34,10 @@ var _sell_all_buttons := {}  # item_id -> Button
 var _loot_rows := {}  # item_id -> Control
 var _songbook_label: Label
 
+var _craft_buttons := {}  # recipe_id -> Button
+var _craft_rows := {}  # recipe_id -> Control
+var _equipment_label: Label
+
 var _saga_section: VBoxContainer
 var _fame_label: Label
 var _prestige_button: Button
@@ -137,11 +141,35 @@ func _build_ui() -> void:
 		_loot_rows[def.id] = row
 	vbox.add_child(_loot_section)
 
+	# Die Werkstatt: bekannte Rezepte schmieden. Material kommt aus
+	# der Beute, Gold aus dem Dorf – die goldene Regel der Loops.
+	vbox.add_child(HSeparator.new())
+	vbox.add_child(_section_label("Die Werkstatt"))
+	for def in ContentDB.recipes():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var craft_button := Button.new()
+		craft_button.custom_minimum_size = Vector2(420, 0)
+		craft_button.pressed.connect(_on_craft_pressed.bind(def.id))
+		row.add_child(craft_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		vbox.add_child(row)
+		_craft_buttons[def.id] = craft_button
+		_craft_rows[def.id] = row
+
 	vbox.add_child(HSeparator.new())
 	vbox.add_child(_section_label("Der Held"))
 
 	_hero_label = Label.new()
 	vbox.add_child(_hero_label)
+
+	_equipment_label = Label.new()
+	_equipment_label.modulate = Color(1, 1, 1, 0.7)
+	_equipment_label.visible = false
+	vbox.add_child(_equipment_label)
 
 	var train_row := HBoxContainer.new()
 	train_row.add_theme_constant_override("separation", 12)
@@ -319,8 +347,42 @@ func _refresh() -> void:
 	if _songbook_label.visible:
 		_songbook_label.text = "Liederbuch: " + " · ".join(song_parts)
 
+	# Werkstatt: nur bekannte Rezepte zeigen.
+	for def in ContentDB.recipes():
+		var craft_row: Control = _craft_rows[def.id]
+		craft_row.visible = Game.state.is_recipe_known(def.id)
+		if not craft_row.visible:
+			continue
+		var craft_button: Button = _craft_buttons[def.id]
+		if Game.state.is_equipped(def.id):
+			craft_button.text = "%s – angelegt" % def.display_name
+			craft_button.disabled = true
+		else:
+			var bonus_parts: Array[String] = []
+			if def.atk_bonus > 0.0:
+				bonus_parts.append("+%s ATK" % BigNum.from_float(def.atk_bonus).format())
+			if def.hp_bonus > 0.0:
+				bonus_parts.append("+%s LP" % BigNum.from_float(def.hp_bonus).format())
+			var cost_parts: Array[String] = ["%s Gold" % BigNum.from_float(def.cost_gold).format()]
+			for item_id: String in def.cost_items:
+				var material := ContentDB.item(item_id)
+				if material != null:
+					cost_parts.append("%s ×%d" % [material.display_name, int(def.cost_items[item_id])])
+			craft_button.text = "Schmieden: %s (%s) – %s" % [
+				def.display_name, ", ".join(bonus_parts), ", ".join(cost_parts),
+			]
+			craft_button.disabled = not Game.state.can_craft(def.id)
+
 	var stats := Game.state.hero_stats()
 	_hero_label.text = "LP %s · Angriff %s" % [stats["hp"].format(), stats["atk"].format()]
+	var equipped_parts: Array[String] = []
+	for slot: String in Game.state.equipment:
+		var equipped := ContentDB.recipe(str(Game.state.equipment[slot]))
+		if equipped != null:
+			equipped_parts.append(equipped.display_name)
+	_equipment_label.visible = not equipped_parts.is_empty()
+	if _equipment_label.visible:
+		_equipment_label.text = "Ausrüstung: " + " · ".join(equipped_parts)
 	var hp_cost := Game.state.training_cost("hp")
 	var atk_cost := Game.state.training_cost("atk")
 	_train_hp_button.text = "Zäher werden (+%s LP) – %s Gold" % [BigNum.from_float(Balance.HERO_HP_PER_TRAINING).format(), hp_cost.format()]
@@ -445,6 +507,10 @@ func _on_run_tick(events: Array) -> void:
 
 func _on_sell_pressed(item_id: String, count: int) -> void:
 	Game.sell_item(item_id, count)
+
+
+func _on_craft_pressed(recipe_id: String) -> void:
+	Game.craft(recipe_id)
 
 
 func _on_run_finished(run_result: Dictionary) -> void:

@@ -40,5 +40,19 @@
     "flavor": "Wer es summt, friert weniger. Behaupten die Barden.",
     "type": "song_fragment",
     "gold_value": 0
+  },
+  {
+    "id": "rezept_rattenfaenger",
+    "display_name": "Rezept: Der Rattenfänger",
+    "flavor": "In Königsblut skizziert. Der Schmied nickt anerkennend.",
+    "type": "recipe",
+    "gold_value": 0
+  },
+  {
+    "id": "rezept_eispanzer",
+    "display_name": "Rezept: Eispanzer",
+    "flavor": "In eine Eisplatte geritzt. Schnell abschreiben!",
+    "type": "recipe",
+    "gold_value": 0
   }
 ]

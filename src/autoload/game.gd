@@ -101,6 +101,13 @@ func sell_item(item_id: String, count: int = 1) -> int:
 	return state.sell_item(item_id, count)
 
 
+func craft(recipe_id: String) -> bool:
+	var crafted := state.craft(recipe_id)
+	if crafted:
+		save_now()
+	return crafted
+
+
 func _emit_and_check(events: Array[Dictionary]) -> void:
 	if events.is_empty():
 		return

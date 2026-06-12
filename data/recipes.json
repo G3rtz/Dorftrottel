@@ -1,0 +1,40 @@
+[
+  {
+    "id": "rezept_knueppel",
+    "display_name": "Solider Knüppel",
+    "flavor": "Omas Idee. Funktioniert erstaunlich gut.",
+    "slot": "weapon",
+    "atk_bonus": 3,
+    "cost_gold": 150,
+    "cost_items": { "rattenzahn": 3 },
+    "known_from_start": true
+  },
+  {
+    "id": "rezept_wams",
+    "display_name": "Gestepptes Wams",
+    "flavor": "Der Schmied näht besser, als er zugibt.",
+    "slot": "armor",
+    "hp_bonus": 25,
+    "cost_gold": 300,
+    "cost_items": { "rattenzahn": 2 },
+    "known_from_start": true
+  },
+  {
+    "id": "rezept_rattenfaenger",
+    "display_name": "Der Rattenfänger",
+    "flavor": "Geschmiedet mit Königszahn. Die Ratten flüstern deinen Namen.",
+    "slot": "weapon",
+    "atk_bonus": 9,
+    "cost_gold": 2500,
+    "cost_items": { "rattenzahn": 10, "rattenkrone": 1 }
+  },
+  {
+    "id": "rezept_eispanzer",
+    "display_name": "Eispanzer",
+    "flavor": "Kalt, schwer, und absolut golemfest.",
+    "slot": "armor",
+    "hp_bonus": 90,
+    "cost_gold": 18000,
+    "cost_items": { "eiskristall": 8, "golemherz": 1 }
+  }
+]

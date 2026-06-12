@@ -12,6 +12,7 @@ const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_run_state.gd",
 	"res://tests/test_perma_upgrade_def.gd",
 	"res://tests/test_item_def.gd",
+	"res://tests/test_crafting.gd",
 	"res://tests/test_content_db.gd",
 	"res://tests/test_game_state.gd",
 	"res://tests/test_save_io.gd",
@@ -23,8 +24,10 @@ func _init() -> void:
 	var failed: PackedStringArray = []
 	for path in TEST_SCRIPTS:
 		var script: GDScript = load(path)
-		if script == null:
-			failed.append("%s: Skript konnte nicht geladen werden" % path)
+		if script == null or not script.can_instantiate():
+			# Auch Parse-Fehler landen hier – sonst würde der Runner
+			# beim new() crashen und die CI hinge ohne Ergebnis.
+			failed.append("%s: Skript konnte nicht geladen/instanziiert werden" % path)
 			continue
 		var instance: Variant = script.new()
 		for method in script.get_script_method_list():

@@ -16,12 +16,14 @@ var inventory := {}        # item_id -> int (Trophäen; vergänglich, weg beim P
 # hero-Sektion: resettet beim Prestige.
 var hero_hp_level := 0
 var hero_atk_level := 0
+var equipment := {}  # slot -> recipe_id (geschmiedete Ausrüstung; vergänglich)
 
 # perma-Sektion: überlebt das Prestige ("alles im Hirn bleibt").
 var dungeons_cleared := {}  # dungeon_id -> true
 var fame := BigNum.zero()   # Ruhm / Legendenpunkte (Prestige-Währung)
 var perma_levels := {}      # perma_upgrade_id -> int
 var song_fragments := {}    # item_id -> int (Liedfragmente, Vorstufe zu Klassen)
+var recipes_known := {}     # recipe_id -> true (gelerntes Schmiedewissen)
 
 # meta-Sektion.
 var total_playtime := 0.0
@@ -119,6 +121,11 @@ func is_generator_visible(def: GeneratorDef) -> bool:
 func hero_stats() -> Dictionary:
 	var hp := Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING * float(hero_hp_level)
 	var atk := Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING * float(hero_atk_level)
+	for slot: String in equipment:
+		var recipe_def := ContentDB.recipe(str(equipment[slot]))
+		if recipe_def != null:
+			hp += recipe_def.hp_bonus
+			atk += recipe_def.atk_bonus
 	return {
 		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult"))),
 		"atk": BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult"))),
@@ -149,6 +156,46 @@ func train(kind: String) -> bool:
 	return true
 
 
+func is_recipe_known(recipe_id: String) -> bool:
+	var def := ContentDB.recipe(recipe_id)
+	if def == null:
+		return false
+	return def.known_from_start or recipes_known.has(recipe_id)
+
+
+func is_equipped(recipe_id: String) -> bool:
+	var def := ContentDB.recipe(recipe_id)
+	return def != null and str(equipment.get(def.slot, "")) == recipe_id
+
+
+func can_craft(recipe_id: String) -> bool:
+	var def := ContentDB.recipe(recipe_id)
+	if def == null or not is_recipe_known(recipe_id) or is_equipped(recipe_id):
+		return false
+	if get_resource(Balance.PRIMARY_RESOURCE).lt(BigNum.from_float(def.cost_gold)):
+		return false
+	for item_id: String in def.cost_items:
+		if item_count(item_id) < int(def.cost_items[item_id]):
+			return false
+	return true
+
+
+## Schmieden: zahlt Gold + Material und legt das Stück in seinen Slot.
+## Das alte Stück im Slot ist damit Geschichte (kein Lager – v1).
+func craft(recipe_id: String) -> bool:
+	if not can_craft(recipe_id):
+		return false
+	var def := ContentDB.recipe(recipe_id)
+	spend_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(def.cost_gold))
+	for item_id: String in def.cost_items:
+		var needed := int(def.cost_items[item_id])
+		inventory[item_id] = item_count(item_id) - needed
+		if inventory[item_id] == 0:
+			inventory.erase(item_id)
+	equipment[def.slot] = recipe_id
+	return true
+
+
 func is_dungeon_unlocked(def: DungeonDef) -> bool:
 	return def.unlocked_by.is_empty() or dungeons_cleared.has(def.unlocked_by)
 
@@ -169,7 +216,7 @@ func bank_run_result(result: Dictionary) -> void:
 
 
 ## Routet einen Drop in die richtige Welt: Trophäen ins (vergängliche)
-## Dorf-Inventar, Liedfragmente in die perma-Sektion.
+## Dorf-Inventar, Liedfragmente und Rezept-Wissen in die perma-Sektion.
 func add_item(item_id: String, count: int = 1) -> void:
 	if count <= 0:
 		return
@@ -179,6 +226,9 @@ func add_item(item_id: String, count: int = 1) -> void:
 		return
 	if def.is_song_fragment():
 		song_fragments[item_id] = fragment_count(item_id) + count
+	elif def.is_recipe():
+		# Wissen stapelt nicht – Duplikate verpuffen (v1).
+		recipes_known[item_id] = true
 	else:
 		inventory[item_id] = item_count(item_id) + count
 
@@ -264,14 +314,15 @@ func prestige() -> Dictionary:
 		return {}
 	fame = fame.add(gained)
 	prestige_count += 1
-	# Ablegbares zurücksetzen (village + hero). Liedfragmente und
-	# Dungeon-Wissen bleiben – die stecken in der perma-Sektion.
+	# Ablegbares zurücksetzen (village + hero). Liedfragmente, Rezepte
+	# und Dungeon-Wissen bleiben – die stecken in der perma-Sektion.
 	resources = {}
 	lifetime_earned = {}
 	generators = {}
 	inventory = {}
 	hero_hp_level = 0
 	hero_atk_level = 0
+	equipment = {}
 	# Startboni der neuen Sage ("beschleunigen, nie skippen").
 	var start_gold := perma_bonus("start_gold")
 	if start_gold > 0.0:
@@ -312,12 +363,14 @@ func to_dict() -> Dictionary:
 		"hero": {
 			"hp_level": hero_hp_level,
 			"atk_level": hero_atk_level,
+			"equipment": equipment.duplicate(),
 		},
 		"perma": {
 			"dungeons_cleared": dungeons_cleared.duplicate(),
 			"fame": fame.to_dict(),
 			"perma_levels": perma_levels.duplicate(),
 			"song_fragments": song_fragments.duplicate(),
+			"recipes_known": recipes_known.duplicate(),
 		},
 		"meta": {
 			"total_playtime": total_playtime,
@@ -345,6 +398,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var hero: Dictionary = data.get("hero", {})
 	state.hero_hp_level = int(hero.get("hp_level", 0))
 	state.hero_atk_level = int(hero.get("atk_level", 0))
+	var serialized_equipment: Dictionary = hero.get("equipment", {})
+	for slot: String in serialized_equipment:
+		state.equipment[slot] = str(serialized_equipment[slot])
 	var perma: Dictionary = data.get("perma", {})
 	var cleared: Dictionary = perma.get("dungeons_cleared", {})
 	for id: String in cleared:
@@ -356,6 +412,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var fragments: Dictionary = perma.get("song_fragments", {})
 	for id: String in fragments:
 		state.song_fragments[id] = int(fragments[id])
+	var known: Dictionary = perma.get("recipes_known", {})
+	for id: String in known:
+		state.recipes_known[id] = true
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))
