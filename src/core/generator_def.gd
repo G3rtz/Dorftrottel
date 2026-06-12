@@ -66,6 +66,35 @@ func cost_for(owned_count: int, count: int = 1) -> BigNum:
 	return base.mul(growth_owned).mul(numerator).div(denominator)
 
 
+## Größtes n, für das cost_for(owned, n) <= budget ist – der
+## "Max"-Kauf. Logarithmische Schätzung plus Randkorrektur gegen
+## Float-Kanten; gedeckelt, damit absurde Budgets nicht absurde
+## Schleifen produzieren.
+const MAX_BULK_BUY := 1000000
+
+func max_affordable(owned_count: int, budget: BigNum) -> int:
+	if budget.lt(cost_for(owned_count, 1)):
+		return 0
+	var n: int
+	if is_equal_approx(cost_growth, 1.0):
+		var per_unit := BigNum.from_float(base_cost)
+		n = int(minf(budget.div(per_unit).floored().to_float(), float(MAX_BULK_BUY)))
+	else:
+		# Geometrische Reihe invertieren:
+		# g^n <= 1 + budget*(g-1) / (base * g^owned)
+		var log_growth := log(cost_growth) / log(10.0)
+		var growth_owned := BigNum.from_log10(float(owned_count) * log_growth)
+		var ratio := budget.mul(BigNum.from_float(cost_growth - 1.0)) \
+			.div(BigNum.from_float(base_cost)).div(growth_owned) \
+			.add(BigNum.one())
+		n = mini(int(ratio.log10f() / log_growth), MAX_BULK_BUY)
+	while n > 1 and budget.lt(cost_for(owned_count, n)):
+		n -= 1
+	while n < MAX_BULK_BUY and budget.gte(cost_for(owned_count, n + 1)):
+		n += 1
+	return n
+
+
 ## Produktionsrate pro Sekunde bei `owned` Stück (noch ohne Multiplikatoren –
 ## Talente/Boosts docken später hier an).
 func rate_for(owned_count: int) -> BigNum:

@@ -6,7 +6,7 @@ extends RefCounted
 ## erlaubte Effekte sind deshalb nur Multiplikatoren und kleine
 ## Startboni, niemals "überspringe X".
 
-const KNOWN_EFFECTS: Array[String] = ["gold_mult", "hero_hp_mult", "hero_atk_mult", "start_gold"]
+const KNOWN_EFFECTS: Array[String] = ["gold_mult", "hero_hp_mult", "hero_atk_mult", "start_gold", "work_mult"]
 
 var id: String = ""
 var display_name: String = ""

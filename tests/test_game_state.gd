@@ -56,6 +56,45 @@ func test_production_and_advance() -> void:
 	assert_true(GameState.new().advance(-5.0).is_empty(), "negative Zeit wird ignoriert")
 
 
+func test_manual_work_is_buffable() -> void:
+	var state := GameState.new()
+	assert_almost(state.manual_work_amount().to_float(), Balance.MANUAL_WORK_AMOUNT, 1e-9,
+		"ohne alles: nur die Basis")
+	var earned := state.do_manual_work()
+	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(), earned.to_float(), 1e-9)
+
+	# Produktion füttert den Klick anteilig (Rate inkl. aller Multis).
+	var def := _first_def()
+	state.generators[def.id] = 100
+	var rate: float = state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	assert_almost(state.manual_work_amount().to_float(),
+		Balance.MANUAL_WORK_AMOUNT + rate * Balance.WORK_PRODUCTION_SHARE, 1e-6,
+		"Klick = Basis + Produktionsanteil")
+
+	# Und der Perma-Buff multipliziert das Ganze.
+	var upgrade := ContentDB.perma_upgrade("fleissige_haende")
+	state.fragments = BigNum.from_float(100.0)
+	assert_true(state.buy_perma("fleissige_haende"))
+	state.fragments = BigNum.zero()
+	rate = state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	assert_almost(state.manual_work_amount().to_float(),
+		(Balance.MANUAL_WORK_AMOUNT + rate * Balance.WORK_PRODUCTION_SHARE)
+			* (1.0 + upgrade.amount_per_level), 1e-6,
+		"Fleißige Hände buffen das Arbeiten")
+
+
+func test_max_affordable_wrapper() -> void:
+	var state := GameState.new()
+	var def := _first_def()
+	assert_eq(state.max_affordable(def.id), 0, "pleite = 0")
+	assert_eq(state.max_affordable("gibt_es_nicht"), 0)
+	state.add_resource(def.resource_id, def.cost_for(0, 10))
+	assert_eq(state.max_affordable(def.id), 10)
+	assert_true(state.buy_generator(def.id, state.max_affordable(def.id)), "Max-Kauf geht durch")
+	assert_eq(state.owned(def.id), 10)
+	assert_eq(state.max_affordable(def.id), 0, "danach ist die Kasse leer")
+
+
 func test_visibility() -> void:
 	var state := GameState.new()
 	var defs := ContentDB.generators()

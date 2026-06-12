@@ -80,6 +80,31 @@ func production_per_second(resource_id: String) -> BigNum:
 	return total
 
 
+## Ertrag eines "Arbeiten"-Klicks: Basis plus Anteil der laufenden
+## Produktion (damit der Knopf nie bedeutungslos wird), multipliziert
+## mit dem Perma-Buff. Der einzige Ort, an dem Klick-Ertrag berechnet
+## wird – künftige Buffs docken hier an.
+func manual_work_amount() -> BigNum:
+	var amount := BigNum.from_float(Balance.MANUAL_WORK_AMOUNT)
+	var share := production_per_second(Balance.PRIMARY_RESOURCE) \
+		.mul(BigNum.from_float(Balance.WORK_PRODUCTION_SHARE))
+	amount = amount.add(share)
+	return amount.mul(BigNum.from_float(1.0 + perma_bonus("work_mult")))
+
+
+func do_manual_work() -> BigNum:
+	var amount := manual_work_amount()
+	add_resource(Balance.PRIMARY_RESOURCE, amount)
+	return amount
+
+
+func max_affordable(generator_id: String) -> int:
+	var def := ContentDB.generator(generator_id)
+	if def == null:
+		return 0
+	return def.max_affordable(owned(generator_id), get_resource(def.resource_id))
+
+
 ## Passiv-Boni gehaltener Liedfragmente. Komplett in BigNum gerechnet,
 ## damit auch absurde Fragment-Mengen nicht als Float überlaufen.
 func fragment_gold_multiplier() -> BigNum:

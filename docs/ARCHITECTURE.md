@@ -247,6 +247,17 @@ Push aus (`.github/workflows/ci.yml`). Neue Testdateien in
 Konvention: Die Simulation in `src/core/` ist vollständig testbar –
 neue Spiellogik kommt **mit Tests**, sonst ist sie nicht fertig.
 
+### Arbeiten & Mehrfachkauf
+
+`GameState.manual_work_amount()` ist der einzige Ort, an dem
+Klick-Ertrag berechnet wird (Basis + Anteil der Produktion/s ×
+Perma-Buff "work_mult") – Buffs docken dort an, analog zu
+`production_per_second()`. Der Mehrfachkauf (1/5/10/100/Max) nutzt
+die geometrische Reihe aus `GeneratorDef.cost_for()`;
+`max_affordable()` invertiert sie logarithmisch mit Randkorrektur,
+die Kerninvariante `cost(n) <= Budget < cost(n+1)` ist über viele
+Größenordnungen getestet.
+
 ### Tatentracking: Tavernenerzählungen
 
 `RunState` zählt während des Runs mit (Ticks, erlittener Schaden,

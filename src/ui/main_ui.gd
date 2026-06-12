@@ -6,10 +6,15 @@ extends Control
 
 const LOG_LINES := 7
 
+const BUY_AMOUNTS := [1, 5, 10, 100, -1]  # -1 = Max
+
 var _resource_label: Label
 var _rate_label: Label
+var _work_button: Button
 var _buy_buttons := {}  # generator_id -> Button
 var _generator_rows := {}  # generator_id -> Control (Zeile, für Sichtbarkeit)
+var _buy_amount := 1  # gewählte Kaufmenge; -1 = Max
+var _amount_buttons := {}  # Menge -> Button
 var _offline_dialog: AcceptDialog
 
 var _hero_label: Label
@@ -96,13 +101,26 @@ func _build_ui() -> void:
 	_rate_label = Label.new()
 	vbox.add_child(_rate_label)
 
-	var work_button := Button.new()
-	work_button.text = "Arbeiten (+%s Gold)" % BigNum.from_float(Balance.MANUAL_WORK_AMOUNT).format()
-	work_button.pressed.connect(Game.manual_work)
-	vbox.add_child(work_button)
+	_work_button = Button.new()
+	_work_button.pressed.connect(Game.manual_work)
+	vbox.add_child(_work_button)
 
 	vbox.add_child(HSeparator.new())
 	vbox.add_child(_section_label("Das Dorf"))
+
+	# Kaufmenge: klassisches 1/5/10/100/Max.
+	var amount_row := HBoxContainer.new()
+	amount_row.add_theme_constant_override("separation", 8)
+	var amount_label := Label.new()
+	amount_label.text = "Kaufmenge:"
+	amount_row.add_child(amount_label)
+	for amount: int in BUY_AMOUNTS:
+		var amount_button := Button.new()
+		amount_button.text = "Max" if amount < 0 else "×%d" % amount
+		amount_button.pressed.connect(_on_buy_amount_pressed.bind(amount))
+		amount_row.add_child(amount_button)
+		_amount_buttons[amount] = amount_button
+	vbox.add_child(amount_row)
 
 	for def in ContentDB.generators():
 		var row := HBoxContainer.new()
@@ -361,6 +379,11 @@ func _refresh() -> void:
 	var rate := Game.state.production_per_second(Balance.PRIMARY_RESOURCE)
 	_resource_label.text = "Gold: %s" % gold.format()
 	_rate_label.text = "%s Gold/s" % rate.format()
+	_work_button.text = "Arbeiten (+%s Gold)" % Game.state.manual_work_amount().format()
+
+	for amount: int in BUY_AMOUNTS:
+		var amount_button: Button = _amount_buttons[amount]
+		amount_button.disabled = amount == _buy_amount
 
 	for def in ContentDB.generators():
 		var row: Control = _generator_rows[def.id]
@@ -368,8 +391,9 @@ func _refresh() -> void:
 		if not row.visible:
 			continue
 		var button: Button = _buy_buttons[def.id]
-		var cost := Game.state.cost_of(def.id, 1)
-		button.text = "%s (%d) – %s Gold" % [def.display_name, Game.state.owned(def.id), cost.format()]
+		var count := _resolve_buy_count(def.id)
+		var cost := Game.state.cost_of(def.id, count)
+		button.text = "%s (%d) +%d – %s Gold" % [def.display_name, Game.state.owned(def.id), count, cost.format()]
 		button.disabled = gold.lt(cost)
 
 	# Ausbauten: nur verfügbare zeigen; gekaufte verschwinden.
@@ -535,8 +559,20 @@ func _refresh() -> void:
 			_bag_label.text = "Beutel: " + " · ".join(bag_parts)
 
 
+## Gewählte Kaufmenge auflösen; "Max" mindestens als 1 anzeigen,
+## damit der Knopf Kosten zeigt, solange man sich nichts leisten kann.
+func _resolve_buy_count(generator_id: String) -> int:
+	if _buy_amount > 0:
+		return _buy_amount
+	return maxi(Game.state.max_affordable(generator_id), 1)
+
+
+func _on_buy_amount_pressed(amount: int) -> void:
+	_buy_amount = amount
+
+
 func _on_buy_pressed(generator_id: String) -> void:
-	Game.buy_generator(generator_id, 1)
+	Game.buy_generator(generator_id, _resolve_buy_count(generator_id))
 
 
 func _on_start_run_pressed(dungeon_id: String) -> void:

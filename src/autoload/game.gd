@@ -47,7 +47,7 @@ func _notification(what: int) -> void:
 
 
 func manual_work() -> void:
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.MANUAL_WORK_AMOUNT))
+	state.do_manual_work()
 
 
 func buy_generator(generator_id: String, count: int = 1) -> bool:

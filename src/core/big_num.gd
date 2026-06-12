@@ -144,6 +144,15 @@ func floored() -> BigNum:
 	return BigNum.from_float(floorf(to_float()))
 
 
+## log10 als Float – für Skalen-Mathe wie den Max-Kauf-Löser.
+## Passt für jeden Exponenten bequem in einen Float.
+func log10f() -> float:
+	if m <= 0.0:
+		push_error("BigNum: log10 von 0 oder negativ")
+		return 0.0
+	return float(e) + log(m) / log(10.0)
+
+
 ## -1 / 0 / +1 wie ein klassischer Comparator. Mantissen werden
 ## näherungsweise verglichen, damit Float-Rauschen (99.999999999 vs 100)
 ## keine "kann ich mir nicht leisten"-Fehler produziert – auch über

@@ -24,6 +24,9 @@ const OFFLINE_EFFICIENCY := 1.0
 const PRIMARY_RESOURCE := "gold"
 
 const MANUAL_WORK_AMOUNT := 1.0
+## Jeder Klick bringt zusätzlich diesen Anteil der Goldproduktion/s –
+## so bleibt "Arbeiten" auch spät relevant, ohne früh zu dominieren.
+const WORK_PRODUCTION_SHARE := 0.05
 
 ## Kampf: Sekunden zwischen zwei Kampf-Ticks (rein darstellerisch –
 ## die Simulation selbst ist tickzahl-, nicht zeitbasiert).

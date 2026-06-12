@@ -27,6 +27,15 @@
     "cost_growth": 1.6
   },
   {
+    "id": "fleissige_haende",
+    "display_name": "Fleißige Hände",
+    "flavor": "Sogar das Betteln hat jetzt Technik.",
+    "effect": "work_mult",
+    "amount_per_level": 0.5,
+    "base_cost": 1,
+    "cost_growth": 1.5
+  },
+  {
     "id": "startvertrauen",
     "display_name": "Startvertrauen",
     "flavor": "Wer berühmt ankommt, muss nicht bei null betteln.",

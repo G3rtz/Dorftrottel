@@ -104,6 +104,14 @@ func test_floored() -> void:
 	assert_big_eq(huge.floored(), huge)
 
 
+func test_log10f() -> void:
+	assert_almost(BigNum.one().log10f(), 0.0, 1e-9)
+	assert_almost(BigNum.from_float(1000.0).log10f(), 3.0, 1e-9)
+	assert_almost(BigNum.from_float(0.01).log10f(), -2.0, 1e-9)
+	assert_almost(BigNum.from_parts(5.0, 100).log10f(), 100.0 + log(5.0) / log(10.0), 1e-9)
+	assert_almost(BigNum.zero().log10f(), 0.0, 1e-9, "0 -> definierter Rückgabewert")
+
+
 func test_serialization_roundtrip() -> void:
 	var original := BigNum.from_parts(4.2, 1337)
 	var restored := BigNum.from_dict(original.to_dict())
