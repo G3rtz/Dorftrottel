@@ -55,7 +55,15 @@ const HERO_ATK_PER_TRAINING := 2.0
 const TRAINING_BASE_COST := 30.0
 const TRAINING_COST_GROWTH := 1.18
 
-## Prestige: Ruhm = floor(sqrt(Lifetime-Gold dieser Sage / Basis)).
+## Prestige: Liedfragmente = floor(sqrt(Lifetime-Gold der Sage / Basis)).
 ## Sublinear, damit häufiges Prestigen ohne Fortschritt nichts bringt:
-## 1 Ruhm bei Basis, 2 bei 4x, 3 bei 9x, 10 bei 100x.
-const FAME_BASE_GOLD := 50000.0
+## 1 Fragment bei Basis, 2 bei 4x, 3 bei 9x, 10 bei 100x.
+## Zweite Quelle: Boss-Drops (Bonus für aktives Spielen).
+const FRAGMENT_BASE_GOLD := 50000.0
+
+## Passiv-Bonus pro GEHALTENEM Liedfragment: Halten inspiriert das
+## Dorf und den Helden, Ausgeben füttert den Perma-Baum – diese
+## Abwägung ist gewollt. Linear pro Fragment gegen geometrisch
+## wachsende Baumkosten balanciert sich selbst.
+const FRAGMENT_GOLD_BONUS := 0.02
+const FRAGMENT_ATK_BONUS := 0.01

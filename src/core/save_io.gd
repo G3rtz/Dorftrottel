@@ -9,7 +9,7 @@ extends RefCounted
 ## 3. Versionierung + Migrations-Kette: alte Saves werden beim Laden
 ##    Schritt für Schritt auf das aktuelle Format gehoben.
 
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 
 const SAVE_FILE := "save.json"
 const BACKUP_FILE := "save.backup.json"
@@ -115,6 +115,13 @@ func _migrate(envelope: Dictionary, from_version: int) -> Dictionary:
 	var version := from_version
 	while version < SAVE_VERSION:
 		match version:
+			1:
+				# v1 -> v2: Ruhm ("fame") ging in den Liedfragmenten auf.
+				var state: Dictionary = envelope.get("state", {})
+				var perma: Dictionary = state.get("perma", {})
+				if perma.has("fame"):
+					perma["fragments"] = perma["fame"]
+					perma.erase("fame")
 			_:
 				push_error("SaveIO: keine Migration von Version %d definiert" % version)
 				return {}

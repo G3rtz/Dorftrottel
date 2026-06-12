@@ -179,32 +179,64 @@ func test_bank_run_result_with_items() -> void:
 	assert_eq(state.fragment_count("lied_vom_keller"), 1)
 
 
-func test_pending_fame_formula() -> void:
+func test_fragment_drops_feed_the_pool() -> void:
+	# Liedfragmente haben zwei Quellen: Prestige UND Boss-Drops.
 	var state := GameState.new()
-	assert_true(state.pending_fame().is_zero(), "ohne Verdienst kein Ruhm")
+	state.add_item("lied_vom_keller")
+	state.add_item("lied_vom_wald", 2)
+	assert_almost(state.fragments.to_float(), 3.0, 1e-9, "Drops zahlen in den Strophen-Pool ein")
+	assert_eq(state.fragment_count("lied_vom_keller"), 1, "und stehen im Liederbuch")
+
+	# Ausgeben leert den Pool, aber nicht das Liederbuch.
+	var upgrade := ContentDB.perma_upgrades()[0]
+	assert_true(state.buy_perma(upgrade.id))
+	assert_true(state.fragments.to_float() < 3.0)
+	assert_eq(state.fragment_count("lied_vom_keller"), 1, "gelernte Lieder gehen nie verloren")
+
+
+func test_fragment_passive_bonuses() -> void:
+	var state := GameState.new()
+	state.generators[ContentDB.generators()[0].id] = 10
+	var base_rate: float = state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	var base_atk: float = state.hero_stats()["atk"].to_float()
+	var base_hp: float = state.hero_stats()["hp"].to_float()
+
+	state.fragments = BigNum.from_float(10.0)
+	var gold_mult := 1.0 + 10.0 * Balance.FRAGMENT_GOLD_BONUS
+	var atk_mult := 1.0 + 10.0 * Balance.FRAGMENT_ATK_BONUS
+	assert_almost(state.production_per_second(Balance.PRIMARY_RESOURCE).to_float() / base_rate,
+		gold_mult, 1e-9, "gehaltene Fragmente inspirieren das Dorf")
+	assert_almost(state.hero_stats()["atk"].to_float() / base_atk, atk_mult, 1e-9,
+		"und beflügeln den Helden")
+	assert_almost(state.hero_stats()["hp"].to_float(), base_hp, 1e-9, "LP bleiben unberührt")
+
+
+func test_pending_fragments_formula() -> void:
+	var state := GameState.new()
+	assert_true(state.pending_fragments().is_zero(), "ohne Verdienst kein Ruhm")
 	assert_false(state.can_prestige())
 
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD - 1.0))
-	assert_true(state.pending_fame().is_zero(), "knapp unter der Basis: noch nichts")
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD - 1.0))
+	assert_true(state.pending_fragments().is_zero(), "knapp unter der Basis: noch nichts")
 
 	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(1.0))
-	assert_almost(state.pending_fame().to_float(), 1.0, 1e-9, "genau Basis = 1 Ruhm")
+	assert_almost(state.pending_fragments().to_float(), 1.0, 1e-9, "genau Basis = 1 Ruhm")
 	assert_true(state.can_prestige())
 
 	# sqrt-Skalierung: 4x Basis = 2, 9x Basis = 3.
 	var rich := GameState.new()
-	rich.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD * 9.0))
-	assert_almost(rich.pending_fame().to_float(), 3.0, 1e-9)
+	rich.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD * 9.0))
+	assert_almost(rich.pending_fragments().to_float(), 3.0, 1e-9)
 
 	# Ausgeben kostet keinen Ruhm: Lifetime zählt, nicht der Bestand.
 	rich.spend_resource(Balance.PRIMARY_RESOURCE, rich.get_resource(Balance.PRIMARY_RESOURCE))
-	assert_almost(rich.pending_fame().to_float(), 3.0, 1e-9)
+	assert_almost(rich.pending_fragments().to_float(), 3.0, 1e-9)
 
 
 func test_prestige_resets_and_keeps() -> void:
 	var state := GameState.new()
 	var gen := ContentDB.generators()[0]
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD * 4.0))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD * 4.0))
 	state.generators[gen.id] = 12
 	state.hero_hp_level = 3
 	state.hero_atk_level = 5
@@ -216,7 +248,7 @@ func test_prestige_resets_and_keeps() -> void:
 
 	var report := state.prestige()
 	assert_false(report.is_empty())
-	assert_almost(report["fame_gained"].to_float(), 2.0, 1e-9)
+	assert_almost(report["fragments_gained"].to_float(), 2.0, 1e-9)
 
 	# Weg: alles Ablegbare (village + hero).
 	assert_true(state.get_resource(Balance.PRIMARY_RESOURCE).is_zero())
@@ -225,10 +257,11 @@ func test_prestige_resets_and_keeps() -> void:
 	assert_eq(state.hero_hp_level, 0)
 	assert_eq(state.hero_atk_level, 0)
 	assert_eq(state.item_count("rattenzahn"), 0, "Trophäen sind vergänglich")
-	assert_true(state.pending_fame().is_zero(), "Ruhm-Zähler beginnt von vorn")
+	assert_true(state.pending_fragments().is_zero(), "Ruhm-Zähler beginnt von vorn")
 
-	# Bleibt: alles im Hirn (perma + meta).
-	assert_almost(state.fame.to_float(), 2.0, 1e-9)
+	# Bleibt: alles im Hirn (perma + meta). 2 Fragmente aus den
+	# Liedern (Drops) + 2 frisch gedichtete aus dem Prestige.
+	assert_almost(state.fragments.to_float(), 4.0, 1e-9)
 	assert_eq(state.fragment_count("lied_vom_keller"), 2, "Lieder überleben das Prestige")
 	assert_true(state.dungeons_cleared.has("ratten_keller"))
 	assert_eq(state.runs_completed, 2)
@@ -247,40 +280,44 @@ func test_perma_upgrades() -> void:
 	assert_false(state.buy_perma(upgrade.id), "ohne Ruhm kein Kauf")
 	assert_false(state.buy_perma("gibt_es_nicht"))
 
-	state.fame = BigNum.from_float(1000.0)
+	state.fragments = BigNum.from_float(1000.0)
 	assert_true(state.buy_perma(upgrade.id))
 	assert_eq(state.perma_level(upgrade.id), 1)
-	assert_almost(state.fame.to_float(), 1000.0 - upgrade.base_cost, 1e-6, "Ruhm wurde abgezogen")
+	assert_almost(state.fragments.to_float(), 1000.0 - upgrade.base_cost, 1e-6, "Ruhm wurde abgezogen")
 	assert_almost(state.perma_cost(upgrade.id).to_float(),
 		upgrade.base_cost * upgrade.cost_growth, 1e-6, "Kosten wachsen")
 	assert_almost(state.perma_bonus(upgrade.effect), upgrade.amount_per_level, 1e-9)
 
 
 func test_perma_effects_apply() -> void:
-	# gold_mult wirkt auf die Produktion …
+	# Fragmente zum Kaufen bereitstellen, danach auf null, damit hier
+	# isoliert der Baum-Effekt gemessen wird (Passiv-Bonus hat eigene Tests).
 	var state := GameState.new()
 	var gen := ContentDB.generators()[0]
 	state.generators[gen.id] = 10
-	var base_rate := state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
-	state.fame = BigNum.from_float(1000.0)
-	assert_true(state.buy_perma("vorauseilender_ruf"))
-	var boosted := state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
-	assert_almost(boosted / base_rate, 1.25, 1e-9, "+25% Gold pro Stufe")
+	var base_rate: float = state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
 
-	# … und die Helden-Multiplikatoren auf die Werte.
+	state.fragments = BigNum.from_float(1000.0)
+	assert_true(state.buy_perma("vorauseilender_ruf"))
 	assert_true(state.buy_perma("haertere_strophen"))
-	assert_almost(state.hero_stats()["atk"].to_float(), Balance.HERO_BASE_ATK * 1.2, 1e-6)
 	assert_true(state.buy_perma("zaeher_held_der_lieder"))
+	state.fragments = BigNum.zero()
+
+	# gold_mult wirkt auf die Produktion …
+	var boosted: float = state.production_per_second(Balance.PRIMARY_RESOURCE).to_float()
+	assert_almost(boosted / base_rate, 1.25, 1e-9, "+25% Gold pro Stufe")
+	# … und die Helden-Multiplikatoren auf die Werte.
+	assert_almost(state.hero_stats()["atk"].to_float(), Balance.HERO_BASE_ATK * 1.2, 1e-6)
 	assert_almost(state.hero_stats()["hp"].to_float(), Balance.HERO_BASE_HP * 1.2, 1e-6)
 
 
 func test_start_gold_after_prestige() -> void:
 	var state := GameState.new()
-	state.fame = BigNum.from_float(1000.0)
+	state.fragments = BigNum.from_float(1000.0)
 	var def := ContentDB.perma_upgrade("startvertrauen")
 	assert_true(state.buy_perma("startvertrauen"))
 	assert_true(state.buy_perma("startvertrauen"))
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD))
 	state.prestige()
 	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(),
 		def.amount_per_level * 2.0, 1e-6, "neue Sage startet mit Startvertrauen")
@@ -298,7 +335,7 @@ func test_serialization_roundtrip() -> void:
 	state.hero_atk_level = 9
 	state.dungeons_cleared["ratten_keller"] = true
 	state.runs_completed = 6
-	state.fame = BigNum.from_float(42.0)
+	state.fragments = BigNum.from_float(42.0)
 	state.perma_levels["vorauseilender_ruf"] = 3
 	state.add_item("rattenzahn", 7)
 	state.add_item("lied_vom_keller", 2)
@@ -313,7 +350,8 @@ func test_serialization_roundtrip() -> void:
 	assert_eq(restored.hero_atk_level, 9)
 	assert_true(restored.dungeons_cleared.has("ratten_keller"))
 	assert_eq(restored.runs_completed, 6)
-	assert_big_eq(restored.fame, BigNum.from_float(42.0))
+	# 42 gesetzt + 2 aus den Lied-Drops oben.
+	assert_big_eq(restored.fragments, BigNum.from_float(44.0))
 	assert_eq(restored.perma_level("vorauseilender_ruf"), 3)
 	assert_eq(restored.item_count("rattenzahn"), 7)
 	assert_eq(restored.fragment_count("lied_vom_keller"), 2)

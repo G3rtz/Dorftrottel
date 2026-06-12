@@ -109,14 +109,17 @@ func test_crafting_through_slots_replaces() -> void:
 func test_prestige_clears_equipment_keeps_recipes() -> void:
 	var state := GameState.new()
 	state.recipes_known["rezept_rattenfaenger"] = true
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD))
 	state.add_item("rattenzahn", 3)
 	assert_true(state.craft("rezept_knueppel"))
 
 	state.prestige()
 	assert_true(state.equipment.is_empty(), "Ausrüstung ist vergänglich")
 	assert_true(state.is_recipe_known("rezept_rattenfaenger"), "Wissen bleibt im Hirn")
-	assert_almost(state.hero_stats()["atk"].to_float(), Balance.HERO_BASE_ATK, 1e-6)
+	# Das Prestige hat Fragmente gedichtet – deren Passiv-Bonus wirkt.
+	var expected_atk: float = Balance.HERO_BASE_ATK \
+		* (1.0 + Balance.FRAGMENT_ATK_BONUS * state.fragments.to_float())
+	assert_almost(state.hero_stats()["atk"].to_float(), expected_atk, 1e-6)
 
 
 func test_equipment_serialization_roundtrip() -> void:

@@ -12,6 +12,23 @@ const ITEMS_PATH := "res://data/items.json"
 const RECIPES_PATH := "res://data/recipes.json"
 const GENERATOR_UPGRADES_PATH := "res://data/generator_upgrades.json"
 
+## Hohe Ausbau-Staffeln in althergebrachter Idle-Manier: werden für
+## jeden Generator GENERIERT statt von Hand gepflegt. Die tiefen
+## Schwellen sind ohne Prestige-Multiplikatoren praktisch
+## unerreichbar – genau dadurch lohnt sich jedes weitere Prestige.
+## IDs ("<generator>_tier_<schwelle>") müssen stabil bleiben: sie
+## stecken in Spielständen.
+const UPGRADE_TIER_THRESHOLDS: Array[int] = [50, 100, 150, 200, 250, 500, 1000]
+const UPGRADE_TIER_FLAVOR: Array[String] = [
+	"Das halbe Dorf hilft inzwischen mit.",
+	"Man nennt es jetzt ein Familienunternehmen.",
+	"Die Nachbardörfer schicken Praktikanten.",
+	"Es gibt eine Warteliste.",
+	"Der König ist neidisch geworden.",
+	"Die Legende arbeitet höchstselbst mit.",
+	"Mythisch. Einfach mythisch.",
+]
+
 static var _generators: Array[GeneratorDef] = []
 static var _generators_loaded := false
 static var _dungeons: Array[DungeonDef] = []
@@ -73,8 +90,33 @@ static func item(id: String) -> ItemDef:
 static func generator_upgrades() -> Array[GeneratorUpgradeDef]:
 	if not _generator_upgrades_loaded:
 		_generator_upgrades = _load_generator_upgrades(GENERATOR_UPGRADES_PATH)
+		_generator_upgrades.append_array(_generate_upgrade_tiers())
 		_generator_upgrades_loaded = true
 	return _generator_upgrades
+
+
+## Erzeugt die hohen Staffeln (×2 ab 50/100/.../1000 Stück) für jeden
+## Generator. Kosten ankern am Preis des Generators an der Schwelle –
+## wer dort ankommt, kann sich den Ausbau bald leisten.
+static func _generate_upgrade_tiers() -> Array[GeneratorUpgradeDef]:
+	var result: Array[GeneratorUpgradeDef] = []
+	for generator_def in generators():
+		for i in UPGRADE_TIER_THRESHOLDS.size():
+			var threshold := UPGRADE_TIER_THRESHOLDS[i]
+			var def := GeneratorUpgradeDef.new()
+			def.id = "%s_tier_%d" % [generator_def.id, threshold]
+			def.generator_id = generator_def.id
+			def.display_name = "%s: Ausbaustufe %d" % [generator_def.display_name, i + 3]
+			def.flavor = UPGRADE_TIER_FLAVOR[i % UPGRADE_TIER_FLAVOR.size()]
+			def.cost = generator_def.base_cost * pow(generator_def.cost_growth, float(threshold)) * 10.0
+			def.mult = 2.0
+			def.unlock_at_owned = threshold
+			var problems := def.validate()
+			if not problems.is_empty():
+				push_error("ContentDB: generierter Ausbau '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+				continue
+			result.append(def)
+	return result
 
 
 static func generator_upgrade(id: String) -> GeneratorUpgradeDef:

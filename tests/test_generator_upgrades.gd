@@ -74,9 +74,48 @@ func test_multiplier_applies_and_stacks() -> void:
 func test_prestige_resets_upgrades() -> void:
 	var state := GameState.new()
 	state.generator_upgrades["oma_brille"] = true
-	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FAME_BASE_GOLD))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(Balance.FRAGMENT_BASE_GOLD))
 	state.prestige()
 	assert_true(state.generator_upgrades.is_empty(), "Ausbauten sind Dorf-Vertrauen – weg beim Prestige")
+
+
+func test_generated_tiers_exist_for_every_generator() -> void:
+	# Hohe Staffeln (50/100/.../1000) werden generiert, nicht gepflegt.
+	for generator_def in ContentDB.generators():
+		for threshold in ContentDB.UPGRADE_TIER_THRESHOLDS:
+			var tier_id := "%s_tier_%d" % [generator_def.id, threshold]
+			var def := ContentDB.generator_upgrade(tier_id)
+			assert_true(def != null, "Staffel '%s' fehlt" % tier_id)
+			if def == null:
+				continue
+			assert_true(def.validate().is_empty())
+			assert_eq(def.unlock_at_owned, threshold)
+			assert_almost(def.mult, 2.0, 1e-9)
+
+
+func test_generated_tier_costs_escalate() -> void:
+	var previous := 0.0
+	for threshold in ContentDB.UPGRADE_TIER_THRESHOLDS:
+		var def := ContentDB.generator_upgrade("oma_tier_%d" % threshold)
+		assert_true(def.cost > previous, "Staffelkosten steigen monoton (ab %d)" % threshold)
+		previous = def.cost
+	# Kosten ankern am Generatorpreis an der Schwelle: wer dort ankommt,
+	# kann sich den Ausbau auch bald leisten.
+	var oma := ContentDB.generator("oma")
+	var tier_50 := ContentDB.generator_upgrade("oma_tier_50")
+	assert_almost(tier_50.cost, oma.base_cost * pow(oma.cost_growth, 50.0) * 10.0, 1e-3)
+
+
+func test_generated_tier_gating_works() -> void:
+	var state := GameState.new()
+	var def := ContentDB.generator_upgrade("oma_tier_50")
+	state.generators["oma"] = 49
+	assert_false(state.is_generator_upgrade_available(def))
+	state.generators["oma"] = 50
+	assert_true(state.is_generator_upgrade_available(def))
+	state.add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(def.cost))
+	assert_true(state.buy_generator_upgrade(def.id))
+	assert_almost(state.generator_multiplier("oma"), 2.0, 1e-9)
 
 
 func test_serialization_roundtrip() -> void:

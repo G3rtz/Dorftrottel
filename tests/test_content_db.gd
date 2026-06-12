@@ -111,16 +111,34 @@ func test_first_dungeon_is_beatable_untrained() -> void:
 		"'%s' muss mit Basiswerten schaffbar sein – sonst ist der Einstieg tot" % first.id)
 
 
-func test_second_dungeon_needs_training_but_not_too_much() -> void:
-	if ContentDB.dungeons().size() < 2:
-		return
-	var second := ContentDB.dungeons()[1]
-	assert_false(_simulate(second, 0, 0),
-		"'%s' darf ohne Training nicht fallen, sonst ist die Progression trivial" % second.id)
-	var beatable_at := -1
-	for level in range(5, 81, 5):
-		if _simulate(second, level, level):
-			beatable_at = level
-			break
-	assert_true(beatable_at > 0,
-		"'%s' muss mit <= 80 Trainingsstufen schaffbar sein" % second.id)
+## Sucht die kleinste Trainingsstufe (HP=ATK), mit der der Dungeon
+## fällt; -1 wenn er bis zum Limit nicht fällt.
+func _minimum_training_level(def: DungeonDef, limit: int) -> int:
+	for level in range(5, limit + 1, 5):
+		if _simulate(def, level, level):
+			return level
+	return -1
+
+
+func test_dungeon_chain_difficulty_is_staged() -> void:
+	# Jeder spätere Dungeon braucht Progression (kein Trivial-Durchmarsch),
+	# bleibt aber mit vertretbarem Training erreichbar. Die Schwellen
+	# pro Kettenglied sind die Balance-Leitplanken.
+	var dungeons := ContentDB.dungeons()
+	var training_limits := {"finsterwald": 30, "eis_hoehle": 80}
+	for i in range(1, dungeons.size()):
+		var def := dungeons[i]
+		assert_false(_simulate(def, 0, 0),
+			"'%s' darf ohne Training nicht fallen, sonst ist die Progression trivial" % def.id)
+		assert_true(training_limits.has(def.id),
+			"'%s' braucht eine Balance-Leitplanke in diesem Test" % def.id)
+		var limit := int(training_limits.get(def.id, 80))
+		var needed := _minimum_training_level(def, limit)
+		assert_true(needed > 0,
+			"'%s' muss mit <= %d Trainingsstufen schaffbar sein" % [def.id, limit])
+	# Die Kette muss steiler werden: Wald vor Eis.
+	if dungeons.size() >= 3:
+		var wald_needed := _minimum_training_level(ContentDB.dungeon("finsterwald"), 80)
+		var eis_needed := _minimum_training_level(ContentDB.dungeon("eis_hoehle"), 80)
+		assert_true(wald_needed < eis_needed,
+			"Finsterwald (%d) muss vor der Eishöhle (%d) fallen" % [wald_needed, eis_needed])

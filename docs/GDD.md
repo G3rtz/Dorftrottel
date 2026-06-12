@@ -66,7 +66,8 @@ Ein Idle Game (angelehnt an Cookie Clicker & Active-Idle-Hybride wie FAPI/NGU Id
 ### Mechanik
 - Reset: alles "Ablegbare" – Währung, Material, Ausrüstung, Hero- & Base-Baum.
 - Bleibt: Perma-Baum, Baupläne/Rezepte, freigeschaltete Dungeons, freigeschaltete Klassen ("alles im Hirn").
-- Prestige-Währung: **Ruhm / Legendenpunkte**.
+- Prestige-Währung: **Liedfragmente** – die Barden dichten die Sage beim Prestige in Strophen (√-Formel), Bosse droppen Bonus-Fragmente.
+- **Halten vs. Ausgeben:** Gehaltene Fragmente geben passiv +Gold/+Schaden, ausgegebene füttern den Perma-Baum. Linear (halten) gegen geometrisch wachsende Baumkosten (ausgeben) balanciert sich selbst.
 
 ### Erzählerischer Rahmen
 Nach jedem Durchlauf wird die Geschichte des Dorftrottels **als Legende weitererzählt**. Jede Nacherzählung macht den Helden der Sage stärker. Der Neustart bei 1:1 ist dieselbe Geschichte – nur besser erzählt.
@@ -83,10 +84,10 @@ Klassen sind **verschiedene Versionen der Sage**. Derselbe Dorftrottel, von vers
 - **First Run (kanonisch):** der dumme Krieger – die ursprüngliche, *wahre* Geschichte. Alles danach ist Ausschmückung.
 - Spätere Versionen: Magier, Paladin, Jäger, …
 
-### Freischaltlogik (Ideen)
-- Taten im Run: "Besiege den Boss nur mit Zaubern → die Magier-Version der Sage entsteht."
-- Prestige-Meilensteine.
-- **Liedfragmente** als Sammelobjekte in Dungeons → noch ein Grund, Dungeons zu betreten.
+### Freischaltlogik
+- Währung: **Tavernenerzählungen** – Taten, die man sich abends beim Tavernenwirt erzählt (erster Boss-Kill, No-Damage-Run, Nur-Schatzkammern-Run, …). Von dort haben die Barden ihre Geschichten.
+- Qualitativ statt grindbar: Klassen brauchen bestimmte Erzählungen ("Besiege den Boss nur mit Zaubern → die Magier-Version der Sage entsteht") plus eine Mindestanzahl.
+- Die Kette: **Taten → Tavernenerzählungen → Barden → Liedfragmente/Sage.**
 - UI-Flavor statt trockenem Unlock: "Ein Barde in einer fernen Taverne erzählt die Geschichte anders…"
 
 ### ⚠️ Scope-Warnung
@@ -120,7 +121,9 @@ Klassen sind teuer (eigene Talente, Ausrüstungslogik, Balancing – multiplizie
 
 ## 8. Offene Fragen / Nächste Schritte
 
-- [ ] Kernressourcen konkret benennen (Währung? Material-Typen?) – *Platzhalter „Gold" läuft, Umbenennung ist eine Ein-Zeilen-Änderung*
+- [x] Kernressourcen konkret benennen → *Gold (Dorf-Währung) · Trophäen (Material/Verkauf) · Liedfragmente (Prestige, halten = passiv, ausgeben = Perma-Baum) · Tavernenerzählungen (Klassen, geplant)*
+- [ ] Dungeon „Vergessene Äcker" (Müllerin-Anbindung) als viertes Kettenglied entwerfen
+- [ ] Tavernenerzählungen + Klassen implementieren (Taten-Tracking im Run)
 - [x] Ersten Dungeon-Loop skizzieren → *v1 gebaut: Räume + Boss, Tod = Run endet & Beute bleibt, Sieg schaltet dauerhaft frei (Details in ARCHITECTURE.md)*
 - [x] Erste 10 Dorf-Generatoren mit Bewohner-Flavor auflisten → *in data/generators.json, von der Oma bis zur Alchemistin, plus Ausbauten in data/generator_upgrades.json*
 - [x] Prestige-Formel (Ruhm-Gewinn) grob festlegen → *v1: Ruhm = ⌊√(Lifetime-Gold der Sage / 50k)⌋, Perma-Baum mit Multiplikatoren + Startgold (Details in ARCHITECTURE.md)*

@@ -29,6 +29,15 @@
     "cost_items": { "rattenzahn": 10, "rattenkrone": 1 }
   },
   {
+    "id": "rezept_wolfspelzmantel",
+    "display_name": "Wolfspelzmantel",
+    "flavor": "Zottelig, warm, und der Keilerzahn hält ihn zusammen.",
+    "slot": "armor",
+    "hp_bonus": 45,
+    "cost_gold": 6000,
+    "cost_items": { "wolfspelz": 6, "keilerzahn": 1 }
+  },
+  {
     "id": "rezept_eispanzer",
     "display_name": "Eispanzer",
     "flavor": "Kalt, schwer, und absolut golemfest.",

@@ -28,9 +28,37 @@
     ]
   },
   {
+    "id": "finsterwald",
+    "display_name": "Der Finsterwald",
+    "flavor": "Die Räuber haben das Bierfass des Tavernenwirts. Das bedeutet Krieg.",
+    "rooms": 6,
+    "enemy_names": ["Hungriger Wolf", "Wegelagerer", "Riesenspinne"],
+    "boss_name": "Der Alte Keiler",
+    "enemy_hp": 32,
+    "enemy_atk": 5,
+    "hp_growth": 1.3,
+    "atk_growth": 1.12,
+    "boss_hp_mult": 2.2,
+    "boss_atk_mult": 1.35,
+    "heal_per_room": 22,
+    "gold_per_enemy": 12,
+    "gold_growth": 1.25,
+    "boss_gold": 150,
+    "completion_bonus": 250,
+    "unlocked_by": "ratten_keller",
+    "drops": [
+      { "item_id": "wolfspelz", "chance": 0.3 }
+    ],
+    "boss_drops": [
+      { "item_id": "keilerzahn", "chance": 1.0 },
+      { "item_id": "lied_vom_wald", "chance": 0.35 },
+      { "item_id": "rezept_wolfspelzmantel", "chance": 0.4 }
+    ]
+  },
+  {
     "id": "eis_hoehle",
     "display_name": "Die Eishöhle",
-    "flavor": "Seit dem Rattenkeller reden die Barden von dir. Der Berg wartet.",
+    "flavor": "Seit dem Keiler singen sie schon zwei Lieder über dich. Der Berg wartet.",
     "rooms": 7,
     "enemy_names": ["Frostwolf", "Eisschleim", "Eiswicht"],
     "boss_name": "Der Eisgolem",
@@ -45,7 +73,7 @@
     "gold_growth": 1.3,
     "boss_gold": 600,
     "completion_bonus": 900,
-    "unlocked_by": "ratten_keller",
+    "unlocked_by": "finsterwald",
     "drops": [
       { "item_id": "eiskristall", "chance": 0.3 }
     ],

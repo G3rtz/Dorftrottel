@@ -14,6 +14,20 @@
     "gold_value": 150
   },
   {
+    "id": "wolfspelz",
+    "display_name": "Wolfspelz",
+    "flavor": "Warm, zottelig, riecht nach Abenteuer.",
+    "type": "trophy",
+    "gold_value": 25
+  },
+  {
+    "id": "keilerzahn",
+    "display_name": "Keilerzahn",
+    "flavor": "So lang wie dein Unterarm. Der Tavernenwirt will ihn nicht glauben.",
+    "type": "trophy",
+    "gold_value": 400
+  },
+  {
     "id": "eiskristall",
     "display_name": "Eiskristall",
     "flavor": "Schmilzt nicht. Unheimlich.",
@@ -35,6 +49,13 @@
     "gold_value": 0
   },
   {
+    "id": "lied_vom_wald",
+    "display_name": "Liedfragment: Die Ballade vom Keiler",
+    "flavor": "Drei Strophen übers Bierfass, eine über den Keiler.",
+    "type": "song_fragment",
+    "gold_value": 0
+  },
+  {
     "id": "lied_vom_ewigen_eis",
     "display_name": "Liedfragment: Das ewige Eis",
     "flavor": "Wer es summt, friert weniger. Behaupten die Barden.",
@@ -45,6 +66,13 @@
     "id": "rezept_rattenfaenger",
     "display_name": "Rezept: Der Rattenfänger",
     "flavor": "In Königsblut skizziert. Der Schmied nickt anerkennend.",
+    "type": "recipe",
+    "gold_value": 0
+  },
+  {
+    "id": "rezept_wolfspelzmantel",
+    "display_name": "Rezept: Wolfspelzmantel",
+    "flavor": "Auf Birkenrinde gekritzelt. Wahrscheinlich vom Räuberhauptmann.",
     "type": "recipe",
     "gold_value": 0
   },

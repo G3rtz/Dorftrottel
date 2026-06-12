@@ -57,6 +57,31 @@ func test_missing_save_reads_empty() -> void:
 	assert_true(io.read().is_empty())
 
 
+func test_migration_v1_fame_becomes_fragments() -> void:
+	# Ein echter Version-1-Save: Ruhm hieß damals "fame".
+	var io := _fresh_io()
+	DirAccess.make_dir_recursive_absolute(TEST_DIR)
+	var file := FileAccess.open(io.save_path(), FileAccess.WRITE)
+	file.store_string(JSON.stringify({
+		"version": 1,
+		"saved_at_unix": 1000.0,
+		"state": {"perma": {"fame": {"m": 4.2, "e": 1}, "dungeons_cleared": {"ratten_keller": true}}},
+	}))
+	file.close()
+
+	var envelope := io.read()
+	assert_false(envelope.is_empty(), "v1-Save wird migriert, nicht abgelehnt")
+	assert_eq(int(envelope["version"]), SaveIO.SAVE_VERSION)
+	var perma: Dictionary = envelope["state"]["perma"]
+	assert_false(perma.has("fame"), "alter Schlüssel ist weg")
+	assert_almost(float(perma["fragments"]["m"]), 4.2, 1e-9, "Ruhm wurde 1:1 zu Liedfragmenten")
+
+	var state := GameState.from_dict(envelope["state"])
+	assert_almost(state.fragments.to_float(), 42.0, 1e-6)
+	assert_true(state.dungeons_cleared.has("ratten_keller"), "Rest des Saves unangetastet")
+	io.clear()
+
+
 func test_full_game_state_through_save() -> void:
 	# Integration: GameState -> SaveIO -> GameState.
 	var io := _fresh_io()

@@ -186,13 +186,32 @@ Multiplikatoren stapeln multiplikativ in
 Prestige). Das Dorf hat die vollen 10 Bewohner-Generatoren aus der
 GDD-Checkliste.
 
-## Prestige: Die Barden-Sage (v1)
+Die frühen Stufen (5/25) sind handgeschrieben mit Flavor; die hohen
+Staffeln (**50/100/150/200/250/500/1000**, je ×2) **generiert
+ContentDB** pro Generator (`_generate_upgrade_tiers`), Kosten
+verankert am Generatorpreis an der Schwelle. Die tiefen Schwellen
+sind ohne Prestige-Multiplikatoren praktisch unerreichbar – genau
+dadurch lohnt sich jedes weitere Prestige. Generierte IDs
+(`<generator>_tier_<schwelle>`) sind save-relevant und müssen stabil
+bleiben.
 
-**Ruhm-Formel** (GDD §8 beantwortet):
-`Ruhm = floor(sqrt(Lifetime-Gold dieser Sage / FAME_BASE_GOLD))`.
-Sublinear, damit häufiges Prestigen ohne echten Fortschritt nichts
-bringt; Lifetime statt Bestand, damit Ausgeben keinen Ruhm kostet.
-Erst ab 1 Ruhm ist Prestige möglich.
+## Prestige: Die Barden-Sage (v2: Liedfragmente)
+
+**Liedfragmente sind DIE Prestige-Währung** (der frühere "Ruhm" ging
+darin auf; Save-Migration v1→v2 benennt `perma.fame` um). Zwei
+Quellen, damit beide Loops einzahlen:
+
+1. **Prestige:** `floor(sqrt(Lifetime-Gold der Sage / FRAGMENT_BASE_GOLD))`
+   – sublinear, Lifetime statt Bestand.
+2. **Boss-Drops:** Lied-Items zahlen beim Verbuchen zusätzlich in den
+   Pool ein (und stehen dauerhaft im Liederbuch – Ausgeben verwebt
+   Strophen, löscht aber kein gelerntes Lied).
+
+**Halten vs. Ausgeben:** Gehaltene Fragmente geben passiv
++2% Gold / +1% Helden-ATK pro Stück (`fragment_*_multiplier()`,
+komplett in BigNum gerechnet). Ausgeben füttert den Perma-Baum.
+Linearer Halte-Bonus gegen geometrische Baumkosten → früh lohnt der
+Baum, später wird Halten attraktiv; balanciert sich selbst.
 
 `GameState.prestige()` setzt um, was das Save-Format von Anfang an
 versprochen hat: `village` (Ressourcen, Lifetime, Generatoren) und
@@ -230,6 +249,13 @@ neue Spiellogik kommt **mit Tests**, sonst ist sie nicht fertig.
 
 ## Bewusst noch nicht gebaut
 
+- **Tavernenerzählungen & Klassen:** Taten im Run (erster Boss-Kill,
+  No-Damage-Run, Nur-Schatzkammern-Run, …) werden zu Erzählungen beim
+  Tavernenwirt – qualitative Meilensteine statt grindbarer Währung.
+  Klassen verlangen bestimmte Erzählungen plus Mindestanzahl. Die
+  narrative Kette: Taten → Erzählungen → Barden → Liedfragmente.
+- **Vergessene Äcker:** geplanter Dungeon mit Müllerin-Anbindung,
+  nächstes Kettenglied nach dem Finsterwald-Muster.
 - **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /
   `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
   an – das sind bereits die einzigen Orte, an denen Raten und Werte

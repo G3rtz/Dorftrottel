@@ -42,7 +42,7 @@ var _upgrade_buttons := {}  # upgrade_id -> Button
 var _upgrade_rows := {}  # upgrade_id -> Control
 
 var _saga_section: VBoxContainer
-var _fame_label: Label
+var _fragments_label: Label
 var _prestige_button: Button
 var _prestige_confirm: ConfirmationDialog
 var _prestige_result: AcceptDialog
@@ -280,8 +280,8 @@ func _build_ui() -> void:
 	_saga_section.add_child(HSeparator.new())
 	_saga_section.add_child(_section_label("Die Sage"))
 
-	_fame_label = Label.new()
-	_saga_section.add_child(_fame_label)
+	_fragments_label = Label.new()
+	_saga_section.add_child(_fragments_label)
 
 	_prestige_button = Button.new()
 	_prestige_button.pressed.connect(_on_prestige_pressed)
@@ -436,12 +436,16 @@ func _refresh() -> void:
 		button.text = "%s%s betreten" % [cleared, def.display_name]
 		button.disabled = run_active
 
-	var pending := Game.state.pending_fame()
-	var revealed: bool = Game.state.prestige_count > 0 or not Game.state.fame.is_zero() or Game.state.can_prestige()
+	var pending := Game.state.pending_fragments()
+	var revealed: bool = Game.state.prestige_count > 0 or not Game.state.fragments.is_zero() or Game.state.can_prestige()
 	_saga_section.visible = revealed
 	if revealed:
-		_fame_label.text = "Ruhm: %s" % Game.state.fame.format()
-		_prestige_button.text = "Die Sage neu erzählen (+%s Ruhm)" % pending.format()
+		var gold_bonus := Game.state.fragments.mul(BigNum.from_float(Balance.FRAGMENT_GOLD_BONUS * 100.0))
+		var atk_bonus := Game.state.fragments.mul(BigNum.from_float(Balance.FRAGMENT_ATK_BONUS * 100.0))
+		_fragments_label.text = "Liedfragmente: %s (gehalten: +%s%% Gold, +%s%% Angriff)" % [
+			Game.state.fragments.format(), gold_bonus.format(), atk_bonus.format(),
+		]
+		_prestige_button.text = "Die Sage neu erzählen (+%s Liedfragmente)" % pending.format()
 		_prestige_button.disabled = not Game.state.can_prestige() or run_active
 		# Der Perma-Baum selbst zeigt sich erst nach dem ersten Prestige.
 		var tree_unlocked: bool = Game.state.prestige_count > 0
@@ -452,8 +456,8 @@ func _refresh() -> void:
 				continue
 			var button: Button = _perma_buttons[def.id]
 			var cost := Game.state.perma_cost(def.id)
-			button.text = "%s (Stufe %d) – %s Ruhm" % [def.display_name, Game.state.perma_level(def.id), cost.format()]
-			button.disabled = Game.state.fame.lt(cost)
+			button.text = "%s (Stufe %d) – %s Liedfragmente" % [def.display_name, Game.state.perma_level(def.id), cost.format()]
+			button.disabled = Game.state.fragments.lt(cost)
 
 	_flee_button.visible = run_active
 	_strike_button.visible = run_active
@@ -572,9 +576,9 @@ func _append_log(line: String) -> void:
 
 func _on_prestige_pressed() -> void:
 	_prestige_confirm.dialog_text = (
-		"Die Barden erzählen deine Geschichte weiter – von vorn, aber besser.\n\n"
-		+ "Es bleibt: Ruhm (+%s), der Perma-Baum, freigeschaltete Dungeons.\n" % Game.state.pending_fame().format()
-		+ "Es geht: Gold, Dorfhelfer, Training."
+		"Die Barden dichten deine Sage in Strophen – und erzählen sie von vorn, aber besser.\n\n"
+		+ "Es bleibt: Liedfragmente (+%s), der Perma-Baum, Rezepte, freigeschaltete Dungeons.\n" % Game.state.pending_fragments().format()
+		+ "Es geht: Gold, Dorfhelfer, Ausbauten, Training, Ausrüstung, Beute."
 	)
 	_prestige_confirm.popup_centered()
 
@@ -585,10 +589,10 @@ func _on_buy_perma_pressed(upgrade_id: String) -> void:
 
 func _on_prestige_performed(report: Dictionary) -> void:
 	var retelling := int(report.get("prestige_count", 1)) - 1
-	_prestige_result.dialog_text = "„%s“\n\n+%s Ruhm (gesamt: %s)" % [
+	_prestige_result.dialog_text = "„%s“\n\n+%s Liedfragmente (gesamt: %s)" % [
 		ContentDB.saga_line(retelling),
-		report.get("fame_gained", BigNum.zero()).format(),
-		report.get("fame_total", BigNum.zero()).format(),
+		report.get("fragments_gained", BigNum.zero()).format(),
+		report.get("fragments_total", BigNum.zero()).format(),
 	]
 	_prestige_result.popup_centered()
 	_run_panel.visible = false

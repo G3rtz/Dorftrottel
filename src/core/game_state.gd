@@ -21,9 +21,14 @@ var equipment := {}  # slot -> recipe_id (geschmiedete Ausrüstung; vergänglich
 
 # perma-Sektion: überlebt das Prestige ("alles im Hirn bleibt").
 var dungeons_cleared := {}  # dungeon_id -> true
-var fame := BigNum.zero()   # Ruhm / Legendenpunkte (Prestige-Währung)
+## Liedfragmente: DIE Prestige-Währung. Quellen: Prestige (die Barden
+## dichten die Sage in Strophen) und Boss-Drops. Halten gibt passive
+## Boni, Ausgeben füttert den Perma-Baum.
+var fragments := BigNum.zero()
 var perma_levels := {}      # perma_upgrade_id -> int
-var song_fragments := {}    # item_id -> int (Liedfragmente, Vorstufe zu Klassen)
+## Liederbuch: WELCHE Lieder je gefunden wurden (Sammlung, sinkt nie –
+## Ausgeben verwebt Strophen, löscht aber kein gelerntes Lied).
+var song_fragments := {}    # item_id -> int
 var recipes_known := {}     # recipe_id -> true (gelerntes Schmiedewissen)
 
 # meta-Sektion.
@@ -68,7 +73,18 @@ func production_per_second(resource_id: String) -> BigNum:
 			total = total.add(rate)
 	if resource_id == Balance.PRIMARY_RESOURCE:
 		total = total.mul(BigNum.from_float(1.0 + perma_bonus("gold_mult")))
+		total = total.mul(fragment_gold_multiplier())
 	return total
+
+
+## Passiv-Boni gehaltener Liedfragmente. Komplett in BigNum gerechnet,
+## damit auch absurde Fragment-Mengen nicht als Float überlaufen.
+func fragment_gold_multiplier() -> BigNum:
+	return BigNum.one().add(fragments.mul(BigNum.from_float(Balance.FRAGMENT_GOLD_BONUS)))
+
+
+func fragment_atk_multiplier() -> BigNum:
+	return BigNum.one().add(fragments.mul(BigNum.from_float(Balance.FRAGMENT_ATK_BONUS)))
 
 
 ## Produkt aller gekauften Ausbauten eines Generators.
@@ -154,9 +170,10 @@ func hero_stats() -> Dictionary:
 		if recipe_def != null:
 			hp += recipe_def.hp_bonus
 			atk += recipe_def.atk_bonus
+	var atk_total := BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult")))
 	return {
 		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult"))),
-		"atk": BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult"))),
+		"atk": atk_total.mul(fragment_atk_multiplier()),
 	}
 
 
@@ -253,7 +270,9 @@ func add_item(item_id: String, count: int = 1) -> void:
 		push_error("GameState: unbekanntes Item '%s'" % item_id)
 		return
 	if def.is_song_fragment():
+		# Ins Liederbuch (Sammlung) UND in den Strophen-Pool (Währung).
 		song_fragments[item_id] = fragment_count(item_id) + count
+		fragments = fragments.add(BigNum.from_float(float(count)))
 	elif def.is_recipe():
 		# Wissen stapelt nicht – Duplikate verpuffen (v1).
 		recipes_known[item_id] = true
@@ -311,36 +330,36 @@ func buy_perma(upgrade_id: String) -> bool:
 	if def == null:
 		return false
 	var cost := perma_cost(upgrade_id)
-	if fame.lt(cost):
+	if fragments.lt(cost):
 		return false
-	fame = fame.sub(cost)
+	fragments = fragments.sub(cost)
 	perma_levels[upgrade_id] = perma_level(upgrade_id) + 1
 	return true
 
 
-## Ruhm, den die aktuelle Sage beim Prestige einbringen würde.
-## Basis ist das je verdiente Gold dieser Sage (nicht der Bestand) –
-## Ausgeben kostet keinen Ruhm.
-func pending_fame() -> BigNum:
+## Liedfragmente, die die Barden beim Prestige aus dieser Sage dichten
+## würden. Basis ist das je verdiente Gold der Sage (nicht der
+## Bestand) – Ausgeben kostet keine Strophen.
+func pending_fragments() -> BigNum:
 	var lifetime := get_lifetime(Balance.PRIMARY_RESOURCE)
-	var ratio := lifetime.div(BigNum.from_float(Balance.FAME_BASE_GOLD))
+	var ratio := lifetime.div(BigNum.from_float(Balance.FRAGMENT_BASE_GOLD))
 	if ratio.cmp(BigNum.one()) < 0:
 		return BigNum.zero()
 	return ratio.square_root().floored()
 
 
 func can_prestige() -> bool:
-	return pending_fame().cmp(BigNum.one()) >= 0
+	return pending_fragments().cmp(BigNum.one()) >= 0
 
 
 ## Die Barden erzählen die Sage neu: village- und hero-Sektion werden
 ## geleert, perma und meta bleiben. Gibt einen Bericht zurück, oder {}
 ## wenn noch nicht genug Ruhm zusammengekommen ist.
 func prestige() -> Dictionary:
-	var gained := pending_fame()
+	var gained := pending_fragments()
 	if gained.cmp(BigNum.one()) < 0:
 		return {}
-	fame = fame.add(gained)
+	fragments = fragments.add(gained)
 	prestige_count += 1
 	# Ablegbares zurücksetzen (village + hero). Liedfragmente, Rezepte
 	# und Dungeon-Wissen bleiben – die stecken in der perma-Sektion.
@@ -357,8 +376,8 @@ func prestige() -> Dictionary:
 	if start_gold > 0.0:
 		add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(start_gold))
 	return {
-		"fame_gained": gained,
-		"fame_total": fame,
+		"fragments_gained": gained,
+		"fragments_total": fragments,
 		"prestige_count": prestige_count,
 	}
 
@@ -397,7 +416,7 @@ func to_dict() -> Dictionary:
 		},
 		"perma": {
 			"dungeons_cleared": dungeons_cleared.duplicate(),
-			"fame": fame.to_dict(),
+			"fragments": fragments.to_dict(),
 			"perma_levels": perma_levels.duplicate(),
 			"song_fragments": song_fragments.duplicate(),
 			"recipes_known": recipes_known.duplicate(),
@@ -438,7 +457,8 @@ static func from_dict(data: Dictionary) -> GameState:
 	var cleared: Dictionary = perma.get("dungeons_cleared", {})
 	for id: String in cleared:
 		state.dungeons_cleared[id] = true
-	state.fame = BigNum.from_dict(perma.get("fame", {}))
+	# "fame" als Fallback: Saves der Version 1 nannten die Währung Ruhm.
+	state.fragments = BigNum.from_dict(perma.get("fragments", perma.get("fame", {})))
 	var levels: Dictionary = perma.get("perma_levels", {})
 	for id: String in levels:
 		state.perma_levels[id] = int(levels[id])

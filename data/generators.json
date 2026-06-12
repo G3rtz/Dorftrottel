@@ -21,8 +21,8 @@
   },
   {
     "id": "wirt",
-    "display_name": "Wirt",
-    "flavor": "Sponsert Proviant. „Der Trottel isst bei mir!“ ist gute Werbung.",
+    "display_name": "Tavernenwirt",
+    "flavor": "Sponsert Proviant und sammelt abends deine Geschichten. „Der Trottel isst bei mir!“",
     "resource_id": "gold",
     "base_rate": 8.0,
     "base_cost": 1100,
