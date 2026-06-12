@@ -7,14 +7,14 @@ extends Node
 
 var state := GameState.new()
 
-## Der aktuelle (oder zuletzt beendete) Run. Läuft nicht offline weiter
-## und überlebt kein Beenden der App – Runs sind die aktive Schicht.
+## Der aktuelle (oder zuletzt beendete) Run. Kämpfe sind rundenbasiert
+## und manuell – der Run wartet auf Spieleraktionen, läuft nicht
+## offline weiter und überlebt kein Beenden der App.
 var run: RunState = null
 
 var _save_io := SaveIO.new()
 var _tick_accumulator := 0.0
 var _autosave_accumulator := 0.0
-var _combat_accumulator := 0.0
 
 
 func _ready() -> void:
@@ -31,7 +31,6 @@ func _process(delta: float) -> void:
 	while _tick_accumulator >= Balance.TICK_SECONDS:
 		state.advance(Balance.TICK_SECONDS)
 		_tick_accumulator -= Balance.TICK_SECONDS
-	_tick_combat(delta)
 	_autosave_accumulator += delta
 	if _autosave_accumulator >= Balance.AUTOSAVE_INTERVAL_SECONDS:
 		_autosave_accumulator = 0.0
@@ -76,23 +75,16 @@ func start_run(dungeon_id: String) -> bool:
 	if def == null or not state.is_dungeon_unlocked(def):
 		return false
 	run = RunState.start(def, state.hero_stats(), randi())
-	_combat_accumulator = 0.0
 	EventBus.run_started.emit(def.id)
 	return true
 
 
-## Aktive Fähigkeiten: können den Run beenden (Todesstoß am Boss),
-## deshalb läuft alles durch dieselbe Abschlussprüfung wie der Tick.
-func run_strike() -> void:
+## Ein Spielerzug im rundenbasierten Kampf. Kann den Run beenden
+## (Todesstoß oder Gegenschlag), deshalb die Abschlussprüfung.
+func run_action(action: RunState.Action) -> void:
 	if not is_run_active():
 		return
-	_emit_and_check(run.use_strike())
-
-
-func run_breather() -> void:
-	if not is_run_active():
-		return
-	_emit_and_check(run.use_breather())
+	_emit_and_check(run.take_action(action))
 
 
 func choose_room(choice: RunState.RoomType) -> void:
@@ -124,24 +116,6 @@ func flee_run() -> void:
 	if is_run_active():
 		run.flee()
 		_finish_run()
-
-
-func _tick_combat(delta: float) -> void:
-	if not is_run_active():
-		return
-	# Während einer Raumwahl steht die Zeit still.
-	if run.phase == RunState.Phase.CHOOSING:
-		_combat_accumulator = 0.0
-		return
-	_combat_accumulator += delta
-	while _combat_accumulator >= Balance.COMBAT_TICK_SECONDS and is_run_active():
-		_combat_accumulator -= Balance.COMBAT_TICK_SECONDS
-		var events := run.step()
-		if events.is_empty():
-			continue
-		EventBus.run_tick.emit(events)
-		if run.status != RunState.Status.ACTIVE:
-			_finish_run()
 
 
 ## Prestige: nicht mitten in einem Run – erst fliehen oder sterben.

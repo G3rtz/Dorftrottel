@@ -1,26 +1,31 @@
 class_name RunState
 extends RefCounted
 
-## Ein laufender Dungeon-Run als reine, deterministische Simulation.
-## Ein step() = ein Kampf-Tick: der Held schlägt zuerst; stirbt der
-## Gegner dadurch, schlägt er nicht mehr zurück.
+## Ein laufender Dungeon-Run als reine, deterministische Simulation –
+## und ein RUNDENBASIERTER, MANUELLER Kampf: Es passiert nichts, bis
+## der Spieler handelt. Jede Aktion ist ein Zug:
 ##
-## Interaktion (alles optional – reines Zuschauen funktioniert weiter):
-## - Fähigkeiten: Zuschlagen (Extra-Schlag ohne Gegenschlag) und
-##   Verschnaufen (Heilung), beide mit Cooldown in Kampf-Ticks.
-## - Raumwahl: Nach jedem geschafften Raum (außer vor dem Boss) gabelt
-##   sich der Gang: Weitergehen / Schatzkammer (härter, mehr Beute) /
-##   Rastplatz (Heilung statt Beute). step() ruht, bis gewählt wurde.
-## - Drops: Gegner würfeln gegen die Drop-Tabelle des Dungeons; der
-##   Zufall ist geseedet, damit Runs reproduzierbar testbar sind.
+## - ATTACK:   normaler Schlag; überlebt der Gegner, schlägt er zurück.
+## - STRIKE:   schwerer Schlag (xSTRIKE_DAMAGE_MULT), Cooldown in Zügen.
+## - BLOCK:    kein eigener Schaden, eingehender Schaden -BLOCK_REDUCTION.
+## - BREATHER: heilt, aber der Gegner schlägt frei zu; langer Cooldown.
 ##
-## v1-Entscheidungen (siehe ARCHITECTURE.md): Tod beendet den Run,
-## Beute (Gold + Items) bleibt; Runs laufen nicht offline und
-## überleben kein Beenden der App.
+## Gegner TELEGRAFIEREN ihre Absicht (enemy_intent): normal oder
+## schwerer Schlag (xHEAVY_INTENT_MULT, seeded RNG). Darum drehen sich
+## die Entscheidungen: Schwere Schläge blockt man – oder man tötet
+## vorher. Tödliche Treffer verhindern den Gegenschlag.
+##
+## Raumwahl wie gehabt: Nach jedem Raum (außer vor dem Boss) gabelt
+## sich der Gang (Weitergehen / Schatzkammer / Rastplatz).
+##
+## v1-Entscheidungen: Tod beendet den Run, Beute bleibt; Runs laufen
+## nicht offline und überleben kein Beenden der App.
 
 enum Status { ACTIVE, VICTORY, DEFEAT, FLED }
 enum Phase { FIGHTING, CHOOSING }
 enum RoomType { NORMAL, ELITE, REST }
+enum Action { ATTACK, STRIKE, BLOCK, BREATHER }
+enum Intent { NORMAL, HEAVY }
 
 var dungeon: DungeonDef
 var status: Status = Status.ACTIVE
@@ -37,6 +42,9 @@ var enemy_name := ""
 var enemy_hp: BigNum
 var enemy_max_hp: BigNum
 var enemy_atk: BigNum
+## Was der Gegner in seinem nächsten Zug vorhat – sichtbar für den
+## Spieler, das ist die Information hinter jeder Entscheidung.
+var enemy_intent: Intent = Intent.NORMAL
 
 var gold_earned := BigNum.zero()
 var items_found := {}  # item_id -> int
@@ -45,20 +53,21 @@ var strike_cooldown := 0
 var breather_cooldown := 0
 
 # Taten-Zähler: füttern nach dem Run die Tavernenerzählungen.
-var ticks := 0
+var turns := 0
 var damage_taken := BigNum.zero()
 var doors_seen := 0
 var elite_chosen := 0
 var rest_chosen := 0
 var strikes_used := 0
 var breathers_used := 0
+var blocks_used := 0
 
 var _rng := RandomNumberGenerator.new()
 
 
 ## hero_stats: {"hp": BigNum, "atk": BigNum} – kommt aus
-## GameState.hero_stats(), damit Talente/Ausrüstung später dort
-## andocken, nicht hier. rng_seed macht Drops reproduzierbar.
+## GameState.hero_stats(). rng_seed macht Drops und Absichten
+## reproduzierbar.
 static func start(dungeon_def: DungeonDef, hero_stats: Dictionary, rng_seed: int = 0) -> RunState:
 	var run := RunState.new()
 	run.dungeon = dungeon_def
@@ -74,63 +83,49 @@ func is_boss_room() -> bool:
 	return dungeon.is_boss_room(current_room)
 
 
-## Führt einen Kampf-Tick aus und liefert die Ereignisse für UI/Log.
-## Tut nichts, solange eine Raumwahl aussteht.
-func step() -> Array[Dictionary]:
-	var events: Array[Dictionary] = []
+func can_act(action: Action) -> bool:
 	if status != Status.ACTIVE or phase != Phase.FIGHTING:
+		return false
+	match action:
+		Action.STRIKE:
+			return strike_cooldown == 0
+		Action.BREATHER:
+			return breather_cooldown == 0
+	return true
+
+
+## Führt einen Spielerzug aus und liefert die Ereignisse für UI/Log.
+func take_action(action: Action) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	if not can_act(action):
 		return events
-	ticks += 1
+	turns += 1
 	strike_cooldown = maxi(0, strike_cooldown - 1)
 	breather_cooldown = maxi(0, breather_cooldown - 1)
-
-	# Der Held schlägt zuerst.
-	if _attack_enemy(hero_atk, events):
-		return events
-
-	# Der Gegner schlägt zurück.
-	hero_hp = hero_hp.sub(enemy_atk)
-	damage_taken = damage_taken.add(enemy_atk)
-	events.append({"type": "enemy_hit", "damage": enemy_atk, "enemy": enemy_name})
-	if hero_hp.signum() <= 0:
-		hero_hp = BigNum.zero()
-		status = Status.DEFEAT
-		events.append({"type": "hero_died", "room": current_room})
-	return events
-
-
-func can_strike() -> bool:
-	return status == Status.ACTIVE and phase == Phase.FIGHTING and strike_cooldown == 0
-
-
-## Zuschlagen: sofortiger Extra-Schlag ohne Gegenschlag – die
-## Belohnung fürs aktive Spielen.
-func use_strike() -> Array[Dictionary]:
-	var events: Array[Dictionary] = []
-	if not can_strike():
-		return events
-	strike_cooldown = Balance.STRIKE_COOLDOWN_TICKS
-	strikes_used += 1
-	var damage := hero_atk.mul(BigNum.from_float(Balance.STRIKE_DAMAGE_MULT))
-	events.append({"type": "strike", "damage": damage})
-	_attack_enemy(damage, events)
-	return events
-
-
-func can_breathe() -> bool:
-	return status == Status.ACTIVE and phase == Phase.FIGHTING and breather_cooldown == 0
-
-
-## Verschnaufen: heilt einen Anteil der maximalen LP, langer Cooldown.
-func use_breather() -> Array[Dictionary]:
-	var events: Array[Dictionary] = []
-	if not can_breathe():
-		return events
-	breather_cooldown = Balance.BREATHER_COOLDOWN_TICKS
-	breathers_used += 1
-	var amount := hero_max_hp.mul(BigNum.from_float(Balance.BREATHER_HEAL_FRACTION))
-	_heal(amount)
-	events.append({"type": "breather", "amount": amount})
+	match action:
+		Action.ATTACK:
+			if _attack_enemy(hero_atk, events):
+				return events
+			_enemy_acts(events, 1.0)
+		Action.STRIKE:
+			strike_cooldown = Balance.STRIKE_COOLDOWN_TURNS
+			strikes_used += 1
+			var damage := hero_atk.mul(BigNum.from_float(Balance.STRIKE_DAMAGE_MULT))
+			events.append({"type": "strike", "damage": damage})
+			if _attack_enemy(damage, events):
+				return events
+			_enemy_acts(events, 1.0)
+		Action.BLOCK:
+			blocks_used += 1
+			events.append({"type": "block"})
+			_enemy_acts(events, 1.0 - Balance.BLOCK_REDUCTION)
+		Action.BREATHER:
+			breather_cooldown = Balance.BREATHER_COOLDOWN_TURNS
+			breathers_used += 1
+			var amount := hero_max_hp.mul(BigNum.from_float(Balance.BREATHER_HEAL_FRACTION))
+			_heal(amount)
+			events.append({"type": "breather", "amount": amount})
+			_enemy_acts(events, 1.0)
 	return events
 
 
@@ -148,7 +143,7 @@ func choose(choice: RoomType) -> Array[Dictionary]:
 			elite_chosen += 1
 		RoomType.REST:
 			rest_chosen += 1
-	# Kleine Verschnaufpause beim Weitergehen – wie bisher.
+	# Kleine Verschnaufpause beim Weitergehen.
 	_heal(BigNum.from_float(dungeon.heal_per_room))
 	if choice == RoomType.REST:
 		var amount := hero_max_hp.mul(BigNum.from_float(Balance.REST_HEAL_FRACTION))
@@ -182,7 +177,7 @@ func result() -> Dictionary:
 		"items": items_found.duplicate(),
 		"rooms_cleared": rooms_cleared,
 		# Taten-Zähler für die Tavernenerzählungen.
-		"ticks": ticks,
+		"turns": turns,
 		"took_damage": not damage_taken.is_zero(),
 		"damage_taken": damage_taken,
 		"doors_seen": doors_seen,
@@ -190,6 +185,7 @@ func result() -> Dictionary:
 		"rest_chosen": rest_chosen,
 		"strikes_used": strikes_used,
 		"breathers_used": breathers_used,
+		"blocks_used": blocks_used,
 	}
 
 
@@ -218,6 +214,26 @@ func _attack_enemy(damage: BigNum, events: Array[Dictionary]) -> bool:
 	rooms_cleared += 1
 	_advance(events)
 	return true
+
+
+## Der Gegner führt seine telegrafierte Absicht aus; danach wird die
+## nächste Absicht gewürfelt. damage_factor < 1 = geblockt.
+func _enemy_acts(events: Array[Dictionary], damage_factor: float) -> void:
+	var damage := enemy_atk
+	var heavy := enemy_intent == Intent.HEAVY
+	if heavy:
+		damage = damage.mul(BigNum.from_float(Balance.HEAVY_INTENT_MULT))
+	damage = damage.mul(BigNum.from_float(damage_factor))
+	hero_hp = hero_hp.sub(damage)
+	damage_taken = damage_taken.add(damage)
+	events.append({"type": "enemy_hit", "damage": damage, "enemy": enemy_name, "heavy": heavy,
+		"blocked": damage_factor < 1.0})
+	if hero_hp.signum() <= 0:
+		hero_hp = BigNum.zero()
+		status = Status.DEFEAT
+		events.append({"type": "hero_died", "room": current_room})
+		return
+	_roll_intent()
 
 
 ## Nach einem erledigten Raum weiterziehen: Vor dem Boss gibt es keine
@@ -254,6 +270,13 @@ func _roll_drops(events: Array[Dictionary]) -> void:
 			events.append({"type": "item_dropped", "item_id": item_id})
 
 
+func _roll_intent() -> void:
+	if _rng.randf() < Balance.HEAVY_INTENT_CHANCE:
+		enemy_intent = Intent.HEAVY
+	else:
+		enemy_intent = Intent.NORMAL
+
+
 func _heal(amount: BigNum) -> void:
 	hero_hp = hero_hp.add(amount)
 	if hero_hp.cmp(hero_max_hp) > 0:
@@ -269,3 +292,4 @@ func _spawn_enemy() -> void:
 		enemy_max_hp = enemy_max_hp.mul(BigNum.from_float(Balance.ELITE_HP_MULT))
 		enemy_atk = enemy_atk.mul(BigNum.from_float(Balance.ELITE_ATK_MULT))
 	enemy_hp = enemy_max_hp.copy()
+	_roll_intent()

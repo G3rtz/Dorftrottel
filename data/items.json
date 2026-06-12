@@ -28,6 +28,20 @@
     "gold_value": 400
   },
   {
+    "id": "kraehenfeder",
+    "display_name": "Krähenfeder",
+    "flavor": "Schwarz wie die Nacht und doppelt so frech.",
+    "type": "trophy",
+    "gold_value": 60
+  },
+  {
+    "id": "strohkrone",
+    "display_name": "Die Strohkrone",
+    "flavor": "Kratzt beim Aufsetzen. Königlich ist anders.",
+    "type": "trophy",
+    "gold_value": 700
+  },
+  {
     "id": "eiskristall",
     "display_name": "Eiskristall",
     "flavor": "Schmilzt nicht. Unheimlich.",
@@ -56,6 +70,13 @@
     "gold_value": 0
   },
   {
+    "id": "lied_der_kraehen",
+    "display_name": "Liedfragment: Das Lied der Krähen",
+    "flavor": "Krächzt sich besser, als es klingt.",
+    "type": "song_fragment",
+    "gold_value": 0
+  },
+  {
     "id": "lied_vom_ewigen_eis",
     "display_name": "Liedfragment: Das ewige Eis",
     "flavor": "Wer es summt, friert weniger. Behaupten die Barden.",
@@ -73,6 +94,13 @@
     "id": "rezept_wolfspelzmantel",
     "display_name": "Rezept: Wolfspelzmantel",
     "flavor": "Auf Birkenrinde gekritzelt. Wahrscheinlich vom Räuberhauptmann.",
+    "type": "recipe",
+    "gold_value": 0
+  },
+  {
+    "id": "rezept_sense",
+    "display_name": "Rezept: Die Erntesense",
+    "flavor": "Der Strohkönig hatte sie dabei. Jetzt erntet sie anders.",
     "type": "recipe",
     "gold_value": 0
   },

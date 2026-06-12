@@ -10,8 +10,9 @@ extends RefCounted
 ## - "victory":      Sieg (optional in einem bestimmten Dungeon)
 ## - "no_damage":    Sieg ohne einen einzigen Treffer
 ## - "all_elite":    Sieg, jede Gabelung führte in die Schatzkammer
-## - "speed":        Sieg in höchstens max_ticks Kampf-Ticks
-## - "no_abilities": Sieg ohne Zuschlagen/Verschnaufen (reines Zusehen)
+## - "speed":        Sieg in höchstens max_turns Spielerzügen
+## - "no_abilities": Sieg nur mit normalen Angriffen (kein Zuschlagen,
+##                   kein Blocken, kein Verschnaufen)
 ## - "fled":         Flucht (der taktische Rückzug)
 ## - "defeat":       Niederlage (auch das gibt eine Geschichte)
 
@@ -25,7 +26,7 @@ var flavor: String = ""
 var type: String = ""
 ## Leer = gilt für jeden Dungeon.
 var dungeon_id: String = ""
-var max_ticks: int = 0
+var max_turns: int = 0
 
 
 static func from_dict(data: Dictionary) -> TaleDef:
@@ -35,7 +36,7 @@ static func from_dict(data: Dictionary) -> TaleDef:
 	def.flavor = str(data.get("flavor", ""))
 	def.type = str(data.get("type", ""))
 	def.dungeon_id = str(data.get("dungeon_id", ""))
-	def.max_ticks = int(data.get("max_ticks", 0))
+	def.max_turns = int(data.get("max_turns", 0))
 	return def
 
 
@@ -49,8 +50,8 @@ func validate() -> PackedStringArray:
 		problems.append("flavor fehlt – die Erzählung IST die Belohnung")
 	if not KNOWN_TYPES.has(type):
 		problems.append("unbekannter Typ '%s'" % type)
-	if type == "speed" and max_ticks <= 0:
-		problems.append("speed braucht max_ticks > 0")
+	if type == "speed" and max_turns <= 0:
+		problems.append("speed braucht max_turns > 0")
 	return problems
 
 
@@ -68,10 +69,11 @@ func matches(result: Dictionary) -> bool:
 			var doors := int(result.get("doors_seen", 0))
 			return victory and doors > 0 and int(result.get("elite_chosen", 0)) == doors
 		"speed":
-			return victory and int(result.get("ticks", 2147483647)) <= max_ticks
+			return victory and int(result.get("turns", 2147483647)) <= max_turns
 		"no_abilities":
 			return victory and int(result.get("strikes_used", 1)) == 0 \
-				and int(result.get("breathers_used", 1)) == 0
+				and int(result.get("breathers_used", 1)) == 0 \
+				and int(result.get("blocks_used", 1)) == 0
 		"fled":
 			return int(result.get("status", -1)) == RunState.Status.FLED
 		"defeat":

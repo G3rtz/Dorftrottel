@@ -270,6 +270,10 @@ func craft(recipe_id: String) -> bool:
 
 
 func is_dungeon_unlocked(def: DungeonDef) -> bool:
+	# Einmal geschafft = für immer offen. Schützt alte Saves, wenn die
+	# Kette nachträglich ein Glied dazwischen bekommt.
+	if dungeons_cleared.has(def.id):
+		return true
 	return def.unlocked_by.is_empty() or dungeons_cleared.has(def.unlocked_by)
 
 

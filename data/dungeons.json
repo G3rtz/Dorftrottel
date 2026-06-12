@@ -10,9 +10,9 @@
     "enemy_atk": 2,
     "hp_growth": 1.3,
     "atk_growth": 1.12,
-    "boss_hp_mult": 2.0,
-    "boss_atk_mult": 1.3,
-    "heal_per_room": 15,
+    "boss_hp_mult": 1.8,
+    "boss_atk_mult": 1.15,
+    "heal_per_room": 18,
     "gold_per_enemy": 4,
     "gold_growth": 1.25,
     "boss_gold": 40,
@@ -56,6 +56,34 @@
     ]
   },
   {
+    "id": "vergessene_aecker",
+    "display_name": "Die Vergessenen Äcker",
+    "flavor": "Die Müllerin kriegt kein Korn mehr – auf den Äckern spukt es.",
+    "rooms": 7,
+    "enemy_names": ["Krähenschwarm", "Wandelnde Vogelscheuche", "Feldgeist"],
+    "boss_name": "Der Strohkönig",
+    "enemy_hp": 48,
+    "enemy_atk": 7,
+    "hp_growth": 1.3,
+    "atk_growth": 1.12,
+    "boss_hp_mult": 2.3,
+    "boss_atk_mult": 1.35,
+    "heal_per_room": 30,
+    "gold_per_enemy": 20,
+    "gold_growth": 1.27,
+    "boss_gold": 300,
+    "completion_bonus": 450,
+    "unlocked_by": "finsterwald",
+    "drops": [
+      { "item_id": "kraehenfeder", "chance": 0.3 }
+    ],
+    "boss_drops": [
+      { "item_id": "strohkrone", "chance": 1.0 },
+      { "item_id": "lied_der_kraehen", "chance": 0.35 },
+      { "item_id": "rezept_sense", "chance": 0.4 }
+    ]
+  },
+  {
     "id": "eis_hoehle",
     "display_name": "Die Eishöhle",
     "flavor": "Seit dem Keiler singen sie schon zwei Lieder über dich. Der Berg wartet.",
@@ -73,7 +101,7 @@
     "gold_growth": 1.3,
     "boss_gold": 600,
     "completion_bonus": 900,
-    "unlocked_by": "finsterwald",
+    "unlocked_by": "vergessene_aecker",
     "drops": [
       { "item_id": "eiskristall", "chance": 0.3 }
     ],

@@ -38,6 +38,15 @@
     "cost_items": { "wolfspelz": 6, "keilerzahn": 1 }
   },
   {
+    "id": "rezept_sense",
+    "display_name": "Die Erntesense",
+    "flavor": "Geschwungen wie zur Ernte. Die Ernte wehrt sich nur mehr.",
+    "slot": "weapon",
+    "atk_bonus": 20,
+    "cost_gold": 9000,
+    "cost_items": { "kraehenfeder": 8, "strohkrone": 1 }
+  },
+  {
     "id": "rezept_eispanzer",
     "display_name": "Eispanzer",
     "flavor": "Kalt, schwer, und absolut golemfest.",

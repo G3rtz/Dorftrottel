@@ -27,8 +27,11 @@ var _run_panel: VBoxContainer
 var _run_status_label: Label
 var _run_log_label: Label
 var _flee_button: Button
+var _attack_button: Button
 var _strike_button: Button
+var _block_button: Button
 var _breather_button: Button
+var _intent_label: Label
 var _door_row: HBoxContainer
 var _bag_label: Label
 var _log_lines: Array[String] = []
@@ -253,20 +256,32 @@ func _build_ui() -> void:
 	_run_status_label = Label.new()
 	_run_panel.add_child(_run_status_label)
 
-	# Aktive Fähigkeiten: selbst eingreifen statt nur zuzusehen.
-	var ability_row := HBoxContainer.new()
-	ability_row.add_theme_constant_override("separation", 12)
+	# Die Absicht des Gegners – die Information hinter jeder Entscheidung.
+	_intent_label = Label.new()
+	_run_panel.add_child(_intent_label)
+
+	# Rundenbasierter Kampf: jede Aktion ist ein Zug.
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 12)
+	_attack_button = Button.new()
+	_attack_button.text = "Angriff"
+	_attack_button.pressed.connect(func() -> void: Game.run_action(RunState.Action.ATTACK))
+	action_row.add_child(_attack_button)
 	_strike_button = Button.new()
-	_strike_button.pressed.connect(Game.run_strike)
-	ability_row.add_child(_strike_button)
+	_strike_button.pressed.connect(func() -> void: Game.run_action(RunState.Action.STRIKE))
+	action_row.add_child(_strike_button)
+	_block_button = Button.new()
+	_block_button.text = "Blocken (-%d%% Schaden)" % int(Balance.BLOCK_REDUCTION * 100.0)
+	_block_button.pressed.connect(func() -> void: Game.run_action(RunState.Action.BLOCK))
+	action_row.add_child(_block_button)
 	_breather_button = Button.new()
-	_breather_button.pressed.connect(Game.run_breather)
-	ability_row.add_child(_breather_button)
+	_breather_button.pressed.connect(func() -> void: Game.run_action(RunState.Action.BREATHER))
+	action_row.add_child(_breather_button)
 	_flee_button = Button.new()
-	_flee_button.text = "Fliehen (Beute bleibt)"
+	_flee_button.text = "Fliehen"
 	_flee_button.pressed.connect(Game.flee_run)
-	ability_row.add_child(_flee_button)
-	_run_panel.add_child(ability_row)
+	action_row.add_child(_flee_button)
+	_run_panel.add_child(action_row)
 
 	# Türwahl an der Gabelung.
 	_door_row = HBoxContainer.new()
@@ -519,9 +534,13 @@ func _refresh() -> void:
 			button.text = "%s (Stufe %d) – %s Liedfragmente" % [def.display_name, Game.state.perma_level(def.id), cost.format()]
 			button.disabled = Game.state.fragments.lt(cost)
 
+	var fighting := run_active and Game.run.phase == RunState.Phase.FIGHTING
 	_flee_button.visible = run_active
-	_strike_button.visible = run_active
-	_breather_button.visible = run_active
+	_attack_button.visible = fighting
+	_strike_button.visible = fighting
+	_block_button.visible = fighting
+	_breather_button.visible = fighting
+	_intent_label.visible = fighting
 	_door_row.visible = run_active and Game.run.phase == RunState.Phase.CHOOSING
 	if run_active:
 		var run := Game.run
@@ -539,16 +558,26 @@ func _refresh() -> void:
 				run.enemy_name, run.enemy_hp.format(), run.enemy_max_hp.format(),
 				run.gold_earned.format(),
 			]
-		if run.strike_cooldown == 0:
-			_strike_button.text = "Zuschlagen (×%s)" % String.num(Balance.STRIKE_DAMAGE_MULT, 1)
-		else:
-			_strike_button.text = "Zuschlagen (%.1fs)" % (run.strike_cooldown * Balance.COMBAT_TICK_SECONDS)
-		_strike_button.disabled = not run.can_strike()
-		if run.breather_cooldown == 0:
-			_breather_button.text = "Verschnaufen (+%d%% LP)" % int(Balance.BREATHER_HEAL_FRACTION * 100.0)
-		else:
-			_breather_button.text = "Verschnaufen (%.1fs)" % (run.breather_cooldown * Balance.COMBAT_TICK_SECONDS)
-		_breather_button.disabled = not run.can_breathe()
+		if fighting:
+			if run.enemy_intent == RunState.Intent.HEAVY:
+				_intent_label.text = "⚠ %s holt zum SCHWEREN Schlag aus (%s Schaden)!" % [
+					run.enemy_name,
+					run.enemy_atk.mul(BigNum.from_float(Balance.HEAVY_INTENT_MULT)).format(),
+				]
+			else:
+				_intent_label.text = "%s knurrt angriffslustig (%s Schaden)." % [
+					run.enemy_name, run.enemy_atk.format(),
+				]
+			if run.strike_cooldown == 0:
+				_strike_button.text = "Zuschlagen (×%s)" % String.num(Balance.STRIKE_DAMAGE_MULT, 1)
+			else:
+				_strike_button.text = "Zuschlagen (noch %d Züge)" % run.strike_cooldown
+			_strike_button.disabled = not run.can_act(RunState.Action.STRIKE)
+			if run.breather_cooldown == 0:
+				_breather_button.text = "Verschnaufen (+%d%% LP)" % int(Balance.BREATHER_HEAL_FRACTION * 100.0)
+			else:
+				_breather_button.text = "Verschnaufen (noch %d Züge)" % run.breather_cooldown
+			_breather_button.disabled = not run.can_act(RunState.Action.BREATHER)
 		var bag_parts: Array[String] = []
 		for item_id: String in run.items_found:
 			var item_def := ContentDB.item(item_id)
@@ -603,7 +632,14 @@ func _on_run_tick(events: Array) -> void:
 			"rested":
 				_append_log("Rastplatz: Du verschnaufst (+%s LP)." % event["amount"].format())
 			"strike":
-				_append_log("Du holst aus: %s Extra-Schaden!" % event["damage"].format())
+				_append_log("Du holst aus: %s Schaden!" % event["damage"].format())
+			"block":
+				_append_log("Du gehst in Deckung.")
+			"enemy_hit":
+				if event.get("blocked", false):
+					_append_log("Geblockt! Nur %s Schaden durchgekommen." % event["damage"].format())
+				elif event.get("heavy", false):
+					_append_log("Schwerer Treffer von %s: -%s LP!" % [event["enemy"], event["damage"].format()])
 			"breather":
 				_append_log("Kurz durchatmen: +%s LP." % event["amount"].format())
 			"item_dropped":

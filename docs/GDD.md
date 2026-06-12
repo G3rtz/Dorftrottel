@@ -122,7 +122,8 @@ Klassen sind teuer (eigene Talente, Ausrüstungslogik, Balancing – multiplizie
 ## 8. Offene Fragen / Nächste Schritte
 
 - [x] Kernressourcen konkret benennen → *Gold (Dorf-Währung) · Trophäen (Material/Verkauf) · Liedfragmente (Prestige, halten = passiv, ausgeben = Perma-Baum) · Tavernenerzählungen (Klassen, geplant)*
-- [ ] Dungeon „Vergessene Äcker" (Müllerin-Anbindung) als viertes Kettenglied entwerfen
+- [x] Dungeon „Vergessene Äcker" (Müllerin-Anbindung) → *drittes Kettenglied: Krähen, Vogelscheuchen, der Strohkönig; Kette: Keller → Wald → Äcker → Eis*
+- [x] Kampf rundenbasiert & manuell → *Angriff/Zuschlagen/Blocken/Verschnaufen, Gegner telegrafieren schwere Schläge*
 - [x] Tavernenerzählungen: Taten-Tracking im Run → *9 Erzählungen in data/tales.json, einmalig & perma; auch Flucht und Niederlage geben Geschichten*
 - [ ] Klassen implementieren (Freischaltung über Tavernenerzählungen)
 - [x] Ersten Dungeon-Loop skizzieren → *v1 gebaut: Räume + Boss, Tod = Run endet & Beute bleibt, Sieg schaltet dauerhaft frei (Details in ARCHITECTURE.md)*

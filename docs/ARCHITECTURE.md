@@ -126,21 +126,33 @@ beim Prestige). `GameState.hero_stats()` ist der einzige Ort, an dem
 Heldenwerte berechnet werden – Talente und Ausrüstung docken später
 dort an, analog zu `production_per_second()` auf der Idle-Seite.
 
-### Interaktion im Run (v2)
+### Kampf im Run (v3): rundenbasiert und manuell
 
-Aktives Spielen ist optional, beschleunigt aber – die GDD-Regel.
-Drei Stellschrauben, alle in der Simulation, nicht in der UI:
+Der Kampf spielt sich wie ein eigenständiges Roguelite: **nichts
+passiert, bis der Spieler handelt.** Kein Auto-Tick – jede Aktion ist
+ein Zug (`RunState.take_action`), Cooldowns zählen in Zügen:
 
-- **Fähigkeiten:** *Zuschlagen* (Extra-Schlag ×1.5 ohne Gegenschlag,
-  kurzer Cooldown) und *Verschnaufen* (+30% LP, langer Cooldown).
-  Cooldowns sind Kampf-Ticks im `step()` – deterministisch testbar.
-- **Raumwahl:** Nach jedem geschafften Raum (außer direkt vor dem
-  Boss) ruht der Run in `Phase.CHOOSING`, bis der Spieler wählt:
-  *Weitergehen* / *Schatzkammer* (Wächter ×1.6 LP / ×1.3 ATK, dafür
-  ×2 Gold und ×3 Drop-Chance) / *Rastplatz* (+40% LP, keine Beute).
-  Risiko gegen Beute ist die eigentliche Entscheidung.
-- **Zeit steht bei der Wahl still** – kein Reflex-Druck, passt zum
-  Idle-Publikum.
+- **Angriff** – normaler Schlag; überlebt der Gegner, schlägt er zurück.
+- **Zuschlagen** – ×2 Schaden, 3 Züge Cooldown. Tödliche Treffer
+  verhindern den Gegenschlag → Finisher-Timing ist Skill.
+- **Blocken** – kein eigener Schaden, −70% eingehender Schaden.
+- **Verschnaufen** – +30% LP, aber der Gegner schlägt frei zu;
+  10 Züge Cooldown.
+
+Der taktische Kern: Gegner **telegrafieren ihre Absicht**
+(`enemy_intent`, seeded RNG) – normal oder schwerer Schlag (×2,
+25% Chance). Schwere Schläge blockt man, oder man tötet vorher.
+Tests erzwingen die Absicht vor jedem Zug, wo exakte Mathematik
+geprüft wird; die Balance-Wächter simulieren mit einem Bot, der
+minimale Spielintelligenz modelliert (Heavy + wenig LP → Block) über
+mehrere Seeds.
+
+- **Raumwahl** wie gehabt: Nach jedem Raum (außer vor dem Boss) ruht
+  der Run in `Phase.CHOOSING`: *Weitergehen* / *Schatzkammer*
+  (Wächter ×1.6 LP / ×1.3 ATK, dafür ×2 Gold und ×3 Drop-Chance) /
+  *Rastplatz* (+40% LP, keine Beute).
+- Da der Run auf den Spieler wartet, gibt es keinerlei Zeitdruck –
+  Idle-Schicht und Run-Schicht koexistieren konfliktfrei.
 
 ### Drops & Beuteverwaltung (v2)
 
@@ -280,8 +292,6 @@ jeder Dungeon eine Sieg-Erzählung hat.
   Tavernenerzählungen (bestimmte + Mindestanzahl). Das Tracking
   steht; es fehlen ClassDef, Auswahl beim Sagenbeginn und
   klassenspezifische Modifikatoren über `hero_stats()`.
-- **Vergessene Äcker:** geplanter Dungeon mit Müllerin-Anbindung,
-  nächstes Kettenglied nach dem Finsterwald-Muster.
 - **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /
   `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
   an – das sind bereits die einzigen Orte, an denen Raten und Werte

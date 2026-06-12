@@ -12,7 +12,7 @@ func _victory_result(overrides := {}) -> Dictionary:
 		"gold": BigNum.from_float(100.0),
 		"items": {},
 		"rooms_cleared": 5,
-		"ticks": 30,
+		"turns": 30,
 		"took_damage": true,
 		"damage_taken": BigNum.from_float(20.0),
 		"doors_seen": 4,
@@ -20,6 +20,7 @@ func _victory_result(overrides := {}) -> Dictionary:
 		"rest_chosen": 0,
 		"strikes_used": 2,
 		"breathers_used": 1,
+		"blocks_used": 2,
 	}
 	for key: String in overrides:
 		result[key] = overrides[key]
@@ -65,16 +66,20 @@ func test_conditions_match() -> void:
 		"ohne Gabelungen keine Schatzjäger-Geschichte")
 
 	var speed := TaleDef.from_dict({
-		"id": "t", "display_name": "T", "flavor": "F", "type": "speed", "max_ticks": 25,
+		"id": "t", "display_name": "T", "flavor": "F", "type": "speed", "max_turns": 25,
 	})
-	assert_false(speed.matches(_victory_result()), "30 Ticks sind zu langsam")
-	assert_true(speed.matches(_victory_result({"ticks": 25})))
+	assert_false(speed.matches(_victory_result()), "30 Züge sind zu langsam")
+	assert_true(speed.matches(_victory_result({"turns": 25})))
 
-	var lazy := TaleDef.from_dict({
+	var stubborn := TaleDef.from_dict({
 		"id": "t", "display_name": "T", "flavor": "F", "type": "no_abilities",
 	})
-	assert_false(lazy.matches(_victory_result()))
-	assert_true(lazy.matches(_victory_result({"strikes_used": 0, "breathers_used": 0})))
+	assert_false(stubborn.matches(_victory_result()))
+	assert_false(stubborn.matches(_victory_result({"strikes_used": 0, "breathers_used": 0})),
+		"Blocken zählt auch als Trick")
+	assert_true(stubborn.matches(_victory_result({
+		"strikes_used": 0, "breathers_used": 0, "blocks_used": 0,
+	})))
 
 	var fled := TaleDef.from_dict({
 		"id": "t", "display_name": "T", "flavor": "F", "type": "fled",
@@ -135,7 +140,7 @@ func test_tales_survive_prestige_and_save() -> void:
 
 func test_run_counters_are_tracked() -> void:
 	# Derselbe deterministische Run wie in test_exact_combat_math:
-	# 8 Ticks, 5 Gegentreffer à 3, eine Gabelung, keine Fähigkeiten.
+	# 8 Züge, 5 Gegentreffer à 3, eine Gabelung, keine Fähigkeiten.
 	var def := DungeonDef.from_dict({
 		"id": "tiny", "display_name": "Tiny", "rooms": 2,
 		"enemy_names": ["Gegner"], "boss_name": "Boss",
@@ -150,14 +155,16 @@ func test_run_counters_are_tracked() -> void:
 		if run.phase == RunState.Phase.CHOOSING:
 			run.choose(RunState.RoomType.NORMAL)
 			continue
-		run.step()
+		run.enemy_intent = RunState.Intent.NORMAL
+		run.take_action(RunState.Action.ATTACK)
 	var result := run.result()
-	assert_eq(int(result["ticks"]), 8)
+	assert_eq(int(result["turns"]), 8)
 	assert_almost(result["damage_taken"].to_float(), 15.0, 1e-6)
 	assert_true(bool(result["took_damage"]))
 	assert_eq(int(result["doors_seen"]), 1)
 	assert_eq(int(result["elite_chosen"]), 0)
 	assert_eq(int(result["strikes_used"]), 0)
+	assert_eq(int(result["blocks_used"]), 0)
 
 
 func test_integration_one_shot_hero_earns_tales() -> void:
@@ -173,7 +180,7 @@ func test_integration_one_shot_hero_earns_tales() -> void:
 		if run.phase == RunState.Phase.CHOOSING:
 			run.choose(RunState.RoomType.ELITE)
 			continue
-		run.step()
+		run.take_action(RunState.Action.ATTACK)
 	var state := GameState.new()
 	var new_tales := state.bank_run_result(run.result())
 	assert_true(new_tales.has("koenig_der_ratten"), "Sieg im Keller")
@@ -199,6 +206,6 @@ func test_integration_flee_and_defeat_tales() -> void:
 		if doomed.phase == RunState.Phase.CHOOSING:
 			doomed.choose(RunState.RoomType.NORMAL)
 			continue
-		doomed.step()
+		doomed.take_action(RunState.Action.ATTACK)
 	assert_eq(doomed.status, RunState.Status.DEFEAT)
 	assert_true(state.bank_run_result(doomed.result()).has("der_tag_an_dem_er_fast_starb"))

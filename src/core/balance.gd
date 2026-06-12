@@ -28,17 +28,18 @@ const MANUAL_WORK_AMOUNT := 1.0
 ## so bleibt "Arbeiten" auch spät relevant, ohne früh zu dominieren.
 const WORK_PRODUCTION_SHARE := 0.05
 
-## Kampf: Sekunden zwischen zwei Kampf-Ticks (rein darstellerisch –
-## die Simulation selbst ist tickzahl-, nicht zeitbasiert).
-const COMBAT_TICK_SECONDS := 0.4
-
-## Aktive Fähigkeiten im Run: Belohnung fürs Selbst-Spielen.
-## Zuschlagen: Extra-Schlag ohne Gegenschlag. Verschnaufen: Heilung.
-## Cooldowns in Kampf-Ticks.
-const STRIKE_DAMAGE_MULT := 1.5
-const STRIKE_COOLDOWN_TICKS := 3
+## Kampf: rundenbasiert und manuell – der Kampf wartet auf den
+## Spieler, jede Aktion ist ein Zug. Cooldowns zählen in Zügen.
+const STRIKE_DAMAGE_MULT := 2.0
+const STRIKE_COOLDOWN_TURNS := 3
 const BREATHER_HEAL_FRACTION := 0.3
-const BREATHER_COOLDOWN_TICKS := 50
+const BREATHER_COOLDOWN_TURNS := 10
+## Blocken: verhindert diesen Anteil des eingehenden Schadens.
+const BLOCK_REDUCTION := 0.7
+## Gegner telegrafieren ihre Absicht: Chance auf einen schweren
+## Schlag (x Mult) – die Information, um die sich Blocken dreht.
+const HEAVY_INTENT_CHANCE := 0.25
+const HEAVY_INTENT_MULT := 2.0
 
 ## Raumwahl: Schatzkammer = härterer Wächter gegen mehr Beute,
 ## Rastplatz = Heilung statt Beute.
@@ -51,7 +52,7 @@ const REST_HEAL_FRACTION := 0.4
 ## Held: Basiswerte plus linearer Zuwachs pro Trainingsstufe.
 ## Training ist die v1-Brücke "Idle finanziert Runs" und resettet
 ## beim Prestige (hero-Sektion).
-const HERO_BASE_HP := 60.0
+const HERO_BASE_HP := 72.0
 const HERO_BASE_ATK := 8.0
 const HERO_HP_PER_TRAINING := 12.0
 const HERO_ATK_PER_TRAINING := 2.0

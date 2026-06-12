@@ -14,6 +14,13 @@
     "dungeon_id": "finsterwald"
   },
   {
+    "id": "die_ernte_ist_eingebracht",
+    "display_name": "Wie der Trottel den Strohkönig drosch",
+    "flavor": "„Gedroschen wie zur Erntezeit! Die Müllerin mahlt wieder, und die Krähen trauen sich nicht mal mehr aufs Dach.“",
+    "type": "victory",
+    "dungeon_id": "vergessene_aecker"
+  },
+  {
     "id": "der_berg_taute",
     "display_name": "Der Tag, an dem der Berg taute",
     "flavor": "„Seit der Trottel oben war, taut der Berg. Aus Respekt, sagen die Alten.“",
@@ -37,12 +44,12 @@
     "display_name": "Schneller als das Gerücht",
     "flavor": "„Er war zurück, bevor ich die Geschichte zu Ende erzählt hatte!“",
     "type": "speed",
-    "max_ticks": 25
+    "max_turns": 25
   },
   {
     "id": "haende_in_den_taschen",
-    "display_name": "Die Hände in den Taschen",
-    "flavor": "„Kein Hauen, kein Schnaufen. Er ist einfach durchspaziert, als wär's der Marktplatz.“",
+    "display_name": "Stur wie ein Brett",
+    "flavor": "„Kein Trick, kein Schild, kein Verschnaufen. Einfach immer nur drauf.“",
     "type": "no_abilities"
   },
   {

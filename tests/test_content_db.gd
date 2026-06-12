@@ -89,25 +89,45 @@ func test_saga_lines_load() -> void:
 ## bricht hier die CI – nicht erst das Spielgefühl.
 
 
-func _simulate(def: DungeonDef, hp_level: int, atk_level: int) -> bool:
+const GUARD_SEEDS: Array[int] = [11, 22, 33]
+
+
+## Simuliert einen Run mit einem Bot, der minimale Spielintelligenz
+## modelliert: angekündigte schwere Schläge werden geblockt, wenn die
+## LP unter der Hälfte liegen – sonst stur angreifen. "Schaffbar"
+## heißt im manuellen Kampf: schaffbar für jemanden, der hinschaut.
+func _simulate(def: DungeonDef, hp_level: int, atk_level: int, rng_seed: int) -> bool:
 	var state := GameState.new()
 	state.hero_hp_level = hp_level
 	state.hero_atk_level = atk_level
-	var run := RunState.start(def, state.hero_stats())
+	var run := RunState.start(def, state.hero_stats(), rng_seed)
+	var half_hp := run.hero_max_hp.mul(BigNum.from_float(0.5))
 	var guard := 100000
 	while run.status == RunState.Status.ACTIVE and guard > 0:
 		guard -= 1
 		if run.phase == RunState.Phase.CHOOSING:
 			run.choose(RunState.RoomType.NORMAL)
 			continue
-		run.step()
+		if run.enemy_intent == RunState.Intent.HEAVY and run.hero_hp.lt(half_hp):
+			run.take_action(RunState.Action.BLOCK)
+		else:
+			run.take_action(RunState.Action.ATTACK)
 	assert_true(guard > 0, "Run in '%s' terminiert" % def.id)
 	return run.status == RunState.Status.VICTORY
 
 
+## Schaffbar = der Bot gewinnt auf ALLEN Prüf-Seeds – robust gegen
+## Absichts-Glück und -Pech.
+func _beatable(def: DungeonDef, level: int) -> bool:
+	for rng_seed in GUARD_SEEDS:
+		if not _simulate(def, level, level, rng_seed):
+			return false
+	return true
+
+
 func test_first_dungeon_is_beatable_untrained() -> void:
 	var first := ContentDB.dungeons()[0]
-	assert_true(_simulate(first, 0, 0),
+	assert_true(_beatable(first, 0),
 		"'%s' muss mit Basiswerten schaffbar sein – sonst ist der Einstieg tot" % first.id)
 
 
@@ -115,7 +135,7 @@ func test_first_dungeon_is_beatable_untrained() -> void:
 ## fällt; -1 wenn er bis zum Limit nicht fällt.
 func _minimum_training_level(def: DungeonDef, limit: int) -> int:
 	for level in range(5, limit + 1, 5):
-		if _simulate(def, level, level):
+		if _beatable(def, level):
 			return level
 	return -1
 
@@ -125,20 +145,24 @@ func test_dungeon_chain_difficulty_is_staged() -> void:
 	# bleibt aber mit vertretbarem Training erreichbar. Die Schwellen
 	# pro Kettenglied sind die Balance-Leitplanken.
 	var dungeons := ContentDB.dungeons()
-	var training_limits := {"finsterwald": 30, "eis_hoehle": 80}
+	var training_limits := {"finsterwald": 35, "vergessene_aecker": 60, "eis_hoehle": 100}
+	var minima := {}
 	for i in range(1, dungeons.size()):
 		var def := dungeons[i]
-		assert_false(_simulate(def, 0, 0),
-			"'%s' darf ohne Training nicht fallen, sonst ist die Progression trivial" % def.id)
+		for rng_seed in GUARD_SEEDS:
+			assert_false(_simulate(def, 0, 0, rng_seed),
+				"'%s' darf ohne Training nicht fallen, sonst ist die Progression trivial" % def.id)
 		assert_true(training_limits.has(def.id),
 			"'%s' braucht eine Balance-Leitplanke in diesem Test" % def.id)
-		var limit := int(training_limits.get(def.id, 80))
+		var limit := int(training_limits.get(def.id, 100))
 		var needed := _minimum_training_level(def, limit)
+		print("Balance: '%s' fällt ab Trainingsstufe %d (Limit %d)" % [def.id, needed, limit])
 		assert_true(needed > 0,
 			"'%s' muss mit <= %d Trainingsstufen schaffbar sein" % [def.id, limit])
-	# Die Kette muss steiler werden: Wald vor Eis.
-	if dungeons.size() >= 3:
-		var wald_needed := _minimum_training_level(ContentDB.dungeon("finsterwald"), 80)
-		var eis_needed := _minimum_training_level(ContentDB.dungeon("eis_hoehle"), 80)
-		assert_true(wald_needed < eis_needed,
-			"Finsterwald (%d) muss vor der Eishöhle (%d) fallen" % [wald_needed, eis_needed])
+		minima[def.id] = needed
+	# Die Kette muss monoton steiler werden.
+	if minima.has("finsterwald") and minima.has("vergessene_aecker") and minima.has("eis_hoehle"):
+		assert_true(int(minima["finsterwald"]) < int(minima["vergessene_aecker"]),
+			"Wald (%s) muss vor den Äckern (%s) fallen" % [minima["finsterwald"], minima["vergessene_aecker"]])
+		assert_true(int(minima["vergessene_aecker"]) < int(minima["eis_hoehle"]),
+			"Äcker (%s) müssen vor dem Eis (%s) fallen" % [minima["vergessene_aecker"], minima["eis_hoehle"]])
