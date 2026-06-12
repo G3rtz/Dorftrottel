@@ -41,6 +41,10 @@ var _equipment_label: Label
 var _upgrade_buttons := {}  # upgrade_id -> Button
 var _upgrade_rows := {}  # upgrade_id -> Control
 
+var _tavern_section: VBoxContainer
+var _tavern_count_label: Label
+var _tale_rows := {}  # tale_id -> Control
+
 var _saga_section: VBoxContainer
 var _fragments_label: Label
 var _prestige_button: Button
@@ -57,6 +61,7 @@ func _ready() -> void:
 	EventBus.run_tick.connect(_on_run_tick)
 	EventBus.run_finished.connect(_on_run_finished)
 	EventBus.prestige_performed.connect(_on_prestige_performed)
+	EventBus.tale_earned.connect(_on_tale_earned)
 
 
 func _process(_delta: float) -> void:
@@ -272,6 +277,30 @@ func _build_ui() -> void:
 	_run_panel.add_child(_run_log_label)
 	vbox.add_child(_run_panel)
 
+	# Die Taverne: hier sammelt der Tavernenwirt deine Geschichten.
+	# Erscheint mit der ersten verdienten Erzählung.
+	_tavern_section = VBoxContainer.new()
+	_tavern_section.visible = false
+	_tavern_section.add_theme_constant_override("separation", 10)
+	_tavern_section.add_child(HSeparator.new())
+	_tavern_section.add_child(_section_label("Die Taverne"))
+	_tavern_count_label = Label.new()
+	_tavern_count_label.modulate = Color(1, 1, 1, 0.7)
+	_tavern_section.add_child(_tavern_count_label)
+	for def in ContentDB.tales():
+		var row := VBoxContainer.new()
+		row.visible = false
+		var title := Label.new()
+		title.text = "„%s“" % def.display_name
+		row.add_child(title)
+		var story := Label.new()
+		story.text = def.flavor
+		story.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(story)
+		_tavern_section.add_child(row)
+		_tale_rows[def.id] = row
+	vbox.add_child(_tavern_section)
+
 	# Die Sage: unsichtbar, bis das erste Prestige in Reichweite ist –
 	# der Offenbarungsmoment aus dem GDD.
 	_saga_section = VBoxContainer.new()
@@ -436,6 +465,13 @@ func _refresh() -> void:
 		button.text = "%s%s betreten" % [cleared, def.display_name]
 		button.disabled = run_active
 
+	# Taverne: verdiente Erzählungen zeigen.
+	_tavern_section.visible = Game.state.tale_count() > 0
+	if _tavern_section.visible:
+		_tavern_count_label.text = "Der Tavernenwirt kennt %d Geschichten über dich." % Game.state.tale_count()
+		for def in ContentDB.tales():
+			_tale_rows[def.id].visible = Game.state.has_tale(def.id)
+
 	var pending := Game.state.pending_fragments()
 	var revealed: bool = Game.state.prestige_count > 0 or not Game.state.fragments.is_zero() or Game.state.can_prestige()
 	_saga_section.visible = revealed
@@ -598,6 +634,12 @@ func _on_prestige_performed(report: Dictionary) -> void:
 	_run_panel.visible = false
 	_log_lines.clear()
 	_run_log_label.text = ""
+
+
+func _on_tale_earned(tale_id: String) -> void:
+	var def := ContentDB.tale(tale_id)
+	if def != null:
+		_append_log("Neue Tavernenerzählung: „%s“" % def.display_name)
 
 
 func _on_offline_progress(report: Dictionary) -> void:

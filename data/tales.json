@@ -1,0 +1,60 @@
+[
+  {
+    "id": "koenig_der_ratten",
+    "display_name": "Wie der Trottel dem Rattenkönig die Krone nahm",
+    "flavor": "„Einfach runtergenommen! Und die Ratte hat sich verbeugt, ich schwöre es!“",
+    "type": "victory",
+    "dungeon_id": "ratten_keller"
+  },
+  {
+    "id": "das_fass_kam_heim",
+    "display_name": "Das Fass kam heim",
+    "flavor": "„Auf EINER Schulter hat er es zurückgetragen. Das volle Fass! Der Keiler hat nur zugeschaut.“",
+    "type": "victory",
+    "dungeon_id": "finsterwald"
+  },
+  {
+    "id": "der_berg_taute",
+    "display_name": "Der Tag, an dem der Berg taute",
+    "flavor": "„Seit der Trottel oben war, taut der Berg. Aus Respekt, sagen die Alten.“",
+    "type": "victory",
+    "dungeon_id": "eis_hoehle"
+  },
+  {
+    "id": "kein_kratzer",
+    "display_name": "Ohne einen einzigen Kratzer",
+    "flavor": "„Nicht mal die Frisur saß schief, sage ich euch. NICHT. MAL. DIE. FRISUR.“",
+    "type": "no_damage"
+  },
+  {
+    "id": "jede_tuer_die_goldene",
+    "display_name": "Jede Tür die goldene",
+    "flavor": "„Schatzkammer, Schatzkammer, Schatzkammer. Der Mann riecht Gold durch Eichenholz.“",
+    "type": "all_elite"
+  },
+  {
+    "id": "schneller_als_das_geruecht",
+    "display_name": "Schneller als das Gerücht",
+    "flavor": "„Er war zurück, bevor ich die Geschichte zu Ende erzählt hatte!“",
+    "type": "speed",
+    "max_ticks": 25
+  },
+  {
+    "id": "haende_in_den_taschen",
+    "display_name": "Die Hände in den Taschen",
+    "flavor": "„Kein Hauen, kein Schnaufen. Er ist einfach durchspaziert, als wär's der Marktplatz.“",
+    "type": "no_abilities"
+  },
+  {
+    "id": "der_taktische_rueckzug",
+    "display_name": "Der taktische Rückzug",
+    "flavor": "„Rückwärts gewonnen, sozusagen. Und die Beute kam trotzdem mit!“",
+    "type": "fled"
+  },
+  {
+    "id": "der_tag_an_dem_er_fast_starb",
+    "display_name": "Der Tag, an dem er fast starb",
+    "flavor": "„Zu Boden ging er, ja. Aber den Beutel? Den hat er nie losgelassen.“",
+    "type": "defeat"
+  }
+]

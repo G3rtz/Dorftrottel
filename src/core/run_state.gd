@@ -44,6 +44,15 @@ var items_found := {}  # item_id -> int
 var strike_cooldown := 0
 var breather_cooldown := 0
 
+# Taten-Zähler: füttern nach dem Run die Tavernenerzählungen.
+var ticks := 0
+var damage_taken := BigNum.zero()
+var doors_seen := 0
+var elite_chosen := 0
+var rest_chosen := 0
+var strikes_used := 0
+var breathers_used := 0
+
 var _rng := RandomNumberGenerator.new()
 
 
@@ -71,6 +80,7 @@ func step() -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	if status != Status.ACTIVE or phase != Phase.FIGHTING:
 		return events
+	ticks += 1
 	strike_cooldown = maxi(0, strike_cooldown - 1)
 	breather_cooldown = maxi(0, breather_cooldown - 1)
 
@@ -80,6 +90,7 @@ func step() -> Array[Dictionary]:
 
 	# Der Gegner schlägt zurück.
 	hero_hp = hero_hp.sub(enemy_atk)
+	damage_taken = damage_taken.add(enemy_atk)
 	events.append({"type": "enemy_hit", "damage": enemy_atk, "enemy": enemy_name})
 	if hero_hp.signum() <= 0:
 		hero_hp = BigNum.zero()
@@ -99,6 +110,7 @@ func use_strike() -> Array[Dictionary]:
 	if not can_strike():
 		return events
 	strike_cooldown = Balance.STRIKE_COOLDOWN_TICKS
+	strikes_used += 1
 	var damage := hero_atk.mul(BigNum.from_float(Balance.STRIKE_DAMAGE_MULT))
 	events.append({"type": "strike", "damage": damage})
 	_attack_enemy(damage, events)
@@ -115,6 +127,7 @@ func use_breather() -> Array[Dictionary]:
 	if not can_breathe():
 		return events
 	breather_cooldown = Balance.BREATHER_COOLDOWN_TICKS
+	breathers_used += 1
 	var amount := hero_max_hp.mul(BigNum.from_float(Balance.BREATHER_HEAL_FRACTION))
 	_heal(amount)
 	events.append({"type": "breather", "amount": amount})
@@ -130,6 +143,11 @@ func choose(choice: RoomType) -> Array[Dictionary]:
 	phase = Phase.FIGHTING
 	current_room += 1
 	room_type = choice
+	match choice:
+		RoomType.ELITE:
+			elite_chosen += 1
+		RoomType.REST:
+			rest_chosen += 1
 	# Kleine Verschnaufpause beim Weitergehen – wie bisher.
 	_heal(BigNum.from_float(dungeon.heal_per_room))
 	if choice == RoomType.REST:
@@ -163,6 +181,15 @@ func result() -> Dictionary:
 		"gold": gold_earned,
 		"items": items_found.duplicate(),
 		"rooms_cleared": rooms_cleared,
+		# Taten-Zähler für die Tavernenerzählungen.
+		"ticks": ticks,
+		"took_damage": not damage_taken.is_zero(),
+		"damage_taken": damage_taken,
+		"doors_seen": doors_seen,
+		"elite_chosen": elite_chosen,
+		"rest_chosen": rest_chosen,
+		"strikes_used": strikes_used,
+		"breathers_used": breathers_used,
 	}
 
 
@@ -210,6 +237,7 @@ func _advance(events: Array[Dictionary]) -> void:
 		})
 		return
 	phase = Phase.CHOOSING
+	doors_seen += 1
 	events.append({"type": "doors_offered", "room": current_room})
 
 

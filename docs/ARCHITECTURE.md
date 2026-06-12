@@ -247,13 +247,28 @@ Push aus (`.github/workflows/ci.yml`). Neue Testdateien in
 Konvention: Die Simulation in `src/core/` ist vollständig testbar –
 neue Spiellogik kommt **mit Tests**, sonst ist sie nicht fertig.
 
+### Tatentracking: Tavernenerzählungen
+
+`RunState` zählt während des Runs mit (Ticks, erlittener Schaden,
+Gabelungen/Türwahlen, Fähigkeits-Einsätze); `result()` liefert die
+Zähler. `TaleDef` (`data/tales.json`) ist eine reine Bedingung über
+dieses Ergebnis – Typen: victory (optional je Dungeon), no_damage,
+all_elite, speed, no_abilities, fled, defeat. Auch Flucht und
+Niederlage geben Geschichten – sehr Dorftrottel.
+
+`bank_run_result()` prüft alle offenen Taten und gibt die neu
+verdienten zurück (`EventBus.tale_earned` je Stück). Erzählungen sind
+**einmalig und perma** ("die Taverne vergisst nichts") und die
+qualitative Vorstufe zu Klassen: Die verlangen später bestimmte
+Erzählungen plus Mindestanzahl. Ein Datenwächter-Test erzwingt, dass
+jeder Dungeon eine Sieg-Erzählung hat.
+
 ## Bewusst noch nicht gebaut
 
-- **Tavernenerzählungen & Klassen:** Taten im Run (erster Boss-Kill,
-  No-Damage-Run, Nur-Schatzkammern-Run, …) werden zu Erzählungen beim
-  Tavernenwirt – qualitative Meilensteine statt grindbarer Währung.
-  Klassen verlangen bestimmte Erzählungen plus Mindestanzahl. Die
-  narrative Kette: Taten → Erzählungen → Barden → Liedfragmente.
+- **Klassen:** Versionen der Sage, freigeschaltet über
+  Tavernenerzählungen (bestimmte + Mindestanzahl). Das Tracking
+  steht; es fehlen ClassDef, Auswahl beim Sagenbeginn und
+  klassenspezifische Modifikatoren über `hero_stats()`.
 - **Vergessene Äcker:** geplanter Dungeon mit Müllerin-Anbindung,
   nächstes Kettenglied nach dem Finsterwald-Muster.
 - **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /

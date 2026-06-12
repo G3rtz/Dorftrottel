@@ -166,9 +166,11 @@ func buy_perma(upgrade_id: String) -> bool:
 
 func _finish_run() -> void:
 	var run_result := run.result()
-	state.bank_run_result(run_result)
+	var new_tales := state.bank_run_result(run_result)
 	save_now()
 	EventBus.run_finished.emit(run_result)
+	for tale_id in new_tales:
+		EventBus.tale_earned.emit(tale_id)
 
 
 func save_now() -> void:

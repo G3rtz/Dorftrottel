@@ -30,6 +30,9 @@ var perma_levels := {}      # perma_upgrade_id -> int
 ## Ausgeben verwebt Strophen, löscht aber kein gelerntes Lied).
 var song_fragments := {}    # item_id -> int
 var recipes_known := {}     # recipe_id -> true (gelerntes Schmiedewissen)
+## Tavernenerzählungen: einmal verdiente Taten. Geschichten vergisst
+## die Taverne nie – Klassen setzen später bestimmte voraus.
+var tales_earned := {}      # tale_id -> true
 
 # meta-Sektion.
 var total_playtime := 0.0
@@ -248,7 +251,8 @@ func is_dungeon_unlocked(def: DungeonDef) -> bool:
 ## Verbucht das Ergebnis eines beendeten Runs: Beute (Gold + Items)
 ## bleibt immer (auch bei Tod/Flucht), nur der Sieg schaltet den
 ## Dungeon dauerhaft frei – das ist die "im Hirn"-Regel aus dem GDD.
-func bank_run_result(result: Dictionary) -> void:
+## Gibt die neu verdienten Tavernenerzählungen zurück.
+func bank_run_result(result: Dictionary) -> Array[String]:
 	var gold: BigNum = result.get("gold", BigNum.zero())
 	if not gold.is_zero():
 		add_resource(Balance.PRIMARY_RESOURCE, gold)
@@ -258,6 +262,27 @@ func bank_run_result(result: Dictionary) -> void:
 	if result.get("victory", false):
 		dungeons_cleared[str(result.get("dungeon_id", ""))] = true
 		runs_completed += 1
+	return _evaluate_tales(result)
+
+
+func has_tale(tale_id: String) -> bool:
+	return tales_earned.has(tale_id)
+
+
+func tale_count() -> int:
+	return tales_earned.size()
+
+
+## Prüft alle noch offenen Taten gegen das Run-Ergebnis.
+func _evaluate_tales(result: Dictionary) -> Array[String]:
+	var new_tales: Array[String] = []
+	for def in ContentDB.tales():
+		if tales_earned.has(def.id):
+			continue
+		if def.matches(result):
+			tales_earned[def.id] = true
+			new_tales.append(def.id)
+	return new_tales
 
 
 ## Routet einen Drop in die richtige Welt: Trophäen ins (vergängliche)
@@ -420,6 +445,7 @@ func to_dict() -> Dictionary:
 			"perma_levels": perma_levels.duplicate(),
 			"song_fragments": song_fragments.duplicate(),
 			"recipes_known": recipes_known.duplicate(),
+			"tales_earned": tales_earned.duplicate(),
 		},
 		"meta": {
 			"total_playtime": total_playtime,
@@ -468,6 +494,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var known: Dictionary = perma.get("recipes_known", {})
 	for id: String in known:
 		state.recipes_known[id] = true
+	var earned_tales: Dictionary = perma.get("tales_earned", {})
+	for id: String in earned_tales:
+		state.tales_earned[id] = true
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))
