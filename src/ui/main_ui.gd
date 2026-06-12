@@ -290,9 +290,9 @@ func _build_ui() -> void:
 	for def in ContentDB.tales():
 		var row := VBoxContainer.new()
 		row.visible = false
-		var title := Label.new()
-		title.text = "„%s“" % def.display_name
-		row.add_child(title)
+		var tale_title := Label.new()
+		tale_title.text = "„%s“" % def.display_name
+		row.add_child(tale_title)
 		var story := Label.new()
 		story.text = def.flavor
 		story.modulate = Color(1, 1, 1, 0.6)
