@@ -71,10 +71,42 @@ func start_run(dungeon_id: String) -> bool:
 	var def := ContentDB.dungeon(dungeon_id)
 	if def == null or not state.is_dungeon_unlocked(def):
 		return false
-	run = RunState.start(def, state.hero_stats())
+	run = RunState.start(def, state.hero_stats(), randi())
 	_combat_accumulator = 0.0
 	EventBus.run_started.emit(def.id)
 	return true
+
+
+## Aktive Fähigkeiten: können den Run beenden (Todesstoß am Boss),
+## deshalb läuft alles durch dieselbe Abschlussprüfung wie der Tick.
+func run_strike() -> void:
+	if not is_run_active():
+		return
+	_emit_and_check(run.use_strike())
+
+
+func run_breather() -> void:
+	if not is_run_active():
+		return
+	_emit_and_check(run.use_breather())
+
+
+func choose_room(choice: RunState.RoomType) -> void:
+	if not is_run_active():
+		return
+	_emit_and_check(run.choose(choice))
+
+
+func sell_item(item_id: String, count: int = 1) -> int:
+	return state.sell_item(item_id, count)
+
+
+func _emit_and_check(events: Array[Dictionary]) -> void:
+	if events.is_empty():
+		return
+	EventBus.run_tick.emit(events)
+	if run.status != RunState.Status.ACTIVE:
+		_finish_run()
 
 
 func flee_run() -> void:
@@ -86,10 +118,16 @@ func flee_run() -> void:
 func _tick_combat(delta: float) -> void:
 	if not is_run_active():
 		return
+	# Während einer Raumwahl steht die Zeit still.
+	if run.phase == RunState.Phase.CHOOSING:
+		_combat_accumulator = 0.0
+		return
 	_combat_accumulator += delta
 	while _combat_accumulator >= Balance.COMBAT_TICK_SECONDS and is_run_active():
 		_combat_accumulator -= Balance.COMBAT_TICK_SECONDS
 		var events := run.step()
+		if events.is_empty():
+			continue
 		EventBus.run_tick.emit(events)
 		if run.status != RunState.Status.ACTIVE:
 			_finish_run()

@@ -22,7 +22,17 @@ var _run_panel: VBoxContainer
 var _run_status_label: Label
 var _run_log_label: Label
 var _flee_button: Button
+var _strike_button: Button
+var _breather_button: Button
+var _door_row: HBoxContainer
+var _bag_label: Label
 var _log_lines: Array[String] = []
+
+var _loot_section: VBoxContainer
+var _sell_buttons := {}  # item_id -> Button
+var _sell_all_buttons := {}  # item_id -> Button
+var _loot_rows := {}  # item_id -> Control
+var _songbook_label: Label
 
 var _saga_section: VBoxContainer
 var _fame_label: Label
@@ -97,6 +107,36 @@ func _build_ui() -> void:
 		_buy_buttons[def.id] = buy_button
 		_generator_rows[def.id] = row
 
+	# Beutestand: Trophäen aus Runs verkaufen. Erscheint erst, wenn es
+	# etwas zu verwalten gibt.
+	_loot_section = VBoxContainer.new()
+	_loot_section.visible = false
+	_loot_section.add_theme_constant_override("separation", 10)
+	_loot_section.add_child(HSeparator.new())
+	_loot_section.add_child(_section_label("Der Beutestand"))
+	for def in ContentDB.items():
+		if def.is_song_fragment():
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var sell_button := Button.new()
+		sell_button.custom_minimum_size = Vector2(320, 0)
+		sell_button.pressed.connect(_on_sell_pressed.bind(def.id, 1))
+		row.add_child(sell_button)
+		var sell_all_button := Button.new()
+		sell_all_button.text = "Alle"
+		sell_all_button.pressed.connect(_on_sell_pressed.bind(def.id, 999999))
+		row.add_child(sell_all_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		_loot_section.add_child(row)
+		_sell_buttons[def.id] = sell_button
+		_sell_all_buttons[def.id] = sell_all_button
+		_loot_rows[def.id] = row
+	vbox.add_child(_loot_section)
+
 	vbox.add_child(HSeparator.new())
 	vbox.add_child(_section_label("Der Held"))
 
@@ -131,17 +171,56 @@ func _build_ui() -> void:
 		_dungeon_buttons[def.id] = start_button
 		_dungeon_rows[def.id] = row
 
+	_songbook_label = Label.new()
+	_songbook_label.modulate = Color(1, 1, 1, 0.7)
+	_songbook_label.visible = false
+	vbox.add_child(_songbook_label)
+
 	_run_panel = VBoxContainer.new()
 	_run_panel.visible = false
 	_run_status_label = Label.new()
 	_run_panel.add_child(_run_status_label)
-	_run_log_label = Label.new()
-	_run_log_label.modulate = Color(1, 1, 1, 0.75)
-	_run_panel.add_child(_run_log_label)
+
+	# Aktive Fähigkeiten: selbst eingreifen statt nur zuzusehen.
+	var ability_row := HBoxContainer.new()
+	ability_row.add_theme_constant_override("separation", 12)
+	_strike_button = Button.new()
+	_strike_button.pressed.connect(Game.run_strike)
+	ability_row.add_child(_strike_button)
+	_breather_button = Button.new()
+	_breather_button.pressed.connect(Game.run_breather)
+	ability_row.add_child(_breather_button)
 	_flee_button = Button.new()
 	_flee_button.text = "Fliehen (Beute bleibt)"
 	_flee_button.pressed.connect(Game.flee_run)
-	_run_panel.add_child(_flee_button)
+	ability_row.add_child(_flee_button)
+	_run_panel.add_child(ability_row)
+
+	# Türwahl an der Gabelung.
+	_door_row = HBoxContainer.new()
+	_door_row.add_theme_constant_override("separation", 12)
+	_door_row.visible = false
+	var door_normal := Button.new()
+	door_normal.text = "Weitergehen"
+	door_normal.pressed.connect(func() -> void: Game.choose_room(RunState.RoomType.NORMAL))
+	_door_row.add_child(door_normal)
+	var door_elite := Button.new()
+	door_elite.text = "Schatzkammer (härter, doppelte Beute, 3x Drops)"
+	door_elite.pressed.connect(func() -> void: Game.choose_room(RunState.RoomType.ELITE))
+	_door_row.add_child(door_elite)
+	var door_rest := Button.new()
+	door_rest.text = "Rastplatz (+%d%% LP, keine Beute)" % int(Balance.REST_HEAL_FRACTION * 100.0)
+	door_rest.pressed.connect(func() -> void: Game.choose_room(RunState.RoomType.REST))
+	_door_row.add_child(door_rest)
+	_run_panel.add_child(_door_row)
+
+	_bag_label = Label.new()
+	_bag_label.modulate = Color(1, 1, 1, 0.7)
+	_run_panel.add_child(_bag_label)
+
+	_run_log_label = Label.new()
+	_run_log_label.modulate = Color(1, 1, 1, 0.75)
+	_run_panel.add_child(_run_log_label)
 	vbox.add_child(_run_panel)
 
 	# Die Sage: unsichtbar, bis das erste Prestige in Reichweite ist –
@@ -215,6 +294,31 @@ func _refresh() -> void:
 		button.text = "%s (%d) – %s Gold" % [def.display_name, Game.state.owned(def.id), cost.format()]
 		button.disabled = gold.lt(cost)
 
+	# Beutestand: nur Zeilen mit Bestand, Sektion nur wenn nicht leer.
+	var any_loot := false
+	for def in ContentDB.items():
+		if def.is_song_fragment():
+			continue
+		var held := Game.state.item_count(def.id)
+		var row: Control = _loot_rows[def.id]
+		row.visible = held > 0
+		if held > 0:
+			any_loot = true
+			var sell_button: Button = _sell_buttons[def.id]
+			sell_button.text = "%s ×%d – verkaufen (+%s Gold)" % [
+				def.display_name, held, BigNum.from_float(def.gold_value).format(),
+			]
+	_loot_section.visible = any_loot
+
+	# Liederbuch: gesammelte Fragmente (perma).
+	var song_parts: Array[String] = []
+	for def in ContentDB.items():
+		if def.is_song_fragment() and Game.state.fragment_count(def.id) > 0:
+			song_parts.append("%s ×%d" % [def.display_name, Game.state.fragment_count(def.id)])
+	_songbook_label.visible = not song_parts.is_empty()
+	if _songbook_label.visible:
+		_songbook_label.text = "Liederbuch: " + " · ".join(song_parts)
+
 	var stats := Game.state.hero_stats()
 	_hero_label.text = "LP %s · Angriff %s" % [stats["hp"].format(), stats["atk"].format()]
 	var hp_cost := Game.state.training_cost("hp")
@@ -255,15 +359,43 @@ func _refresh() -> void:
 			button.disabled = Game.state.fame.lt(cost)
 
 	_flee_button.visible = run_active
+	_strike_button.visible = run_active
+	_breather_button.visible = run_active
+	_door_row.visible = run_active and Game.run.phase == RunState.Phase.CHOOSING
 	if run_active:
 		var run := Game.run
-		var room_text := "Bossraum" if run.is_boss_room() else "Raum %d/%d" % [run.current_room, run.dungeon.rooms]
-		_run_status_label.text = "%s – %s | Held: %s/%s LP | %s: %s/%s LP | Beute: %s Gold" % [
-			run.dungeon.display_name, room_text,
-			run.hero_hp.format(), run.hero_max_hp.format(),
-			run.enemy_name, run.enemy_hp.format(), run.enemy_max_hp.format(),
-			run.gold_earned.format(),
-		]
+		if run.phase == RunState.Phase.CHOOSING:
+			_run_status_label.text = "%s – der Gang gabelt sich. | Held: %s/%s LP | Beute: %s Gold" % [
+				run.dungeon.display_name,
+				run.hero_hp.format(), run.hero_max_hp.format(),
+				run.gold_earned.format(),
+			]
+		else:
+			var room_text := "Bossraum" if run.is_boss_room() else "Raum %d/%d" % [run.current_room, run.dungeon.rooms]
+			_run_status_label.text = "%s – %s | Held: %s/%s LP | %s: %s/%s LP | Beute: %s Gold" % [
+				run.dungeon.display_name, room_text,
+				run.hero_hp.format(), run.hero_max_hp.format(),
+				run.enemy_name, run.enemy_hp.format(), run.enemy_max_hp.format(),
+				run.gold_earned.format(),
+			]
+		if run.strike_cooldown == 0:
+			_strike_button.text = "Zuschlagen (×%s)" % String.num(Balance.STRIKE_DAMAGE_MULT, 1)
+		else:
+			_strike_button.text = "Zuschlagen (%.1fs)" % (run.strike_cooldown * Balance.COMBAT_TICK_SECONDS)
+		_strike_button.disabled = not run.can_strike()
+		if run.breather_cooldown == 0:
+			_breather_button.text = "Verschnaufen (+%d%% LP)" % int(Balance.BREATHER_HEAL_FRACTION * 100.0)
+		else:
+			_breather_button.text = "Verschnaufen (%.1fs)" % (run.breather_cooldown * Balance.COMBAT_TICK_SECONDS)
+		_breather_button.disabled = not run.can_breathe()
+		var bag_parts: Array[String] = []
+		for item_id: String in run.items_found:
+			var item_def := ContentDB.item(item_id)
+			if item_def != null:
+				bag_parts.append("%s ×%d" % [item_def.display_name, run.items_found[item_id]])
+		_bag_label.visible = not bag_parts.is_empty()
+		if _bag_label.visible:
+			_bag_label.text = "Beutel: " + " · ".join(bag_parts)
 
 
 func _on_buy_pressed(generator_id: String) -> void:
@@ -289,12 +421,30 @@ func _on_run_tick(events: Array) -> void:
 			"room_entered":
 				if event.get("is_boss", false):
 					_append_log("Der Bossraum… %s wartet!" % event["enemy"])
+				elif int(event.get("room_type", RunState.RoomType.NORMAL)) == RunState.RoomType.ELITE:
+					_append_log("Die Schatzkammer! %s bewacht sie." % event["enemy"])
 				else:
 					_append_log("Raum %d: %s stellt sich dir." % [event["room"], event["enemy"]])
+			"doors_offered":
+				_append_log("Der Gang gabelt sich. Wohin?")
+			"rested":
+				_append_log("Rastplatz: Du verschnaufst (+%s LP)." % event["amount"].format())
+			"strike":
+				_append_log("Du holst aus: %s Extra-Schaden!" % event["damage"].format())
+			"breather":
+				_append_log("Kurz durchatmen: +%s LP." % event["amount"].format())
+			"item_dropped":
+				var item_def := ContentDB.item(str(event.get("item_id", "")))
+				if item_def != null:
+					_append_log("Gefunden: %s!" % item_def.display_name)
 			"hero_died":
 				_append_log("Du gehst zu Boden. Die Beute nimmst du trotzdem mit.")
 			"run_complete":
 				_append_log("Dungeon geschafft! Gesamtbeute: %s Gold" % event["gold_total"].format())
+
+
+func _on_sell_pressed(item_id: String, count: int) -> void:
+	Game.sell_item(item_id, count)
 
 
 func _on_run_finished(run_result: Dictionary) -> void:

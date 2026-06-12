@@ -29,6 +29,22 @@ const MANUAL_WORK_AMOUNT := 1.0
 ## die Simulation selbst ist tickzahl-, nicht zeitbasiert).
 const COMBAT_TICK_SECONDS := 0.4
 
+## Aktive Fähigkeiten im Run: Belohnung fürs Selbst-Spielen.
+## Zuschlagen: Extra-Schlag ohne Gegenschlag. Verschnaufen: Heilung.
+## Cooldowns in Kampf-Ticks.
+const STRIKE_DAMAGE_MULT := 1.5
+const STRIKE_COOLDOWN_TICKS := 3
+const BREATHER_HEAL_FRACTION := 0.3
+const BREATHER_COOLDOWN_TICKS := 50
+
+## Raumwahl: Schatzkammer = härterer Wächter gegen mehr Beute,
+## Rastplatz = Heilung statt Beute.
+const ELITE_HP_MULT := 1.6
+const ELITE_ATK_MULT := 1.3
+const ELITE_GOLD_MULT := 2.0
+const ELITE_DROP_MULT := 3.0
+const REST_HEAL_FRACTION := 0.4
+
 ## Held: Basiswerte plus linearer Zuwachs pro Trainingsstufe.
 ## Training ist die v1-Brücke "Idle finanziert Runs" und resettet
 ## beim Prestige (hero-Sektion).

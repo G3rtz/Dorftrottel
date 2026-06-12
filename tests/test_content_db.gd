@@ -51,6 +51,33 @@ func test_perma_upgrades_load() -> void:
 	assert_eq(ContentDB.perma_upgrade("gibt_es_nicht"), null)
 
 
+func test_items_load() -> void:
+	var defs := ContentDB.items()
+	assert_true(defs.size() >= 1, "mindestens ein Item definiert")
+	for def in defs:
+		assert_true(def.validate().is_empty(), "Item '%s' ist gültig" % def.id)
+	assert_true(ContentDB.item(defs[0].id) != null)
+	assert_eq(ContentDB.item("gibt_es_nicht"), null)
+
+
+func test_dungeon_drop_tables_are_wired() -> void:
+	# Jeder Dungeon braucht Drops, jeder Drop ein existierendes Item,
+	# und jeder Boss soll auch ein Liedfragment in der Tabelle haben –
+	# der GDD-Grund, Dungeons wieder zu betreten.
+	for dungeon_def in ContentDB.dungeons():
+		assert_false(dungeon_def.drops.is_empty(), "'%s' braucht eine Drop-Tabelle" % dungeon_def.id)
+		assert_false(dungeon_def.boss_drops.is_empty(), "'%s' braucht Boss-Drops" % dungeon_def.id)
+		var has_fragment := false
+		for table: Array in [dungeon_def.drops, dungeon_def.boss_drops]:
+			for entry: Dictionary in table:
+				var item_def := ContentDB.item(str(entry.get("item_id", "")))
+				assert_true(item_def != null,
+					"'%s' droppt unbekanntes Item '%s'" % [dungeon_def.id, entry.get("item_id")])
+				if item_def != null and item_def.is_song_fragment():
+					has_fragment = true
+		assert_true(has_fragment, "'%s' sollte irgendwo ein Liedfragment droppen" % dungeon_def.id)
+
+
 func test_saga_lines_load() -> void:
 	assert_false(ContentDB.saga_line(0).is_empty(), "erste Nacherzählung hat einen Text")
 	assert_false(ContentDB.saga_line(9999).is_empty(), "jenseits der Liste trägt die letzte Zeile")
@@ -69,8 +96,11 @@ func _simulate(def: DungeonDef, hp_level: int, atk_level: int) -> bool:
 	var run := RunState.start(def, state.hero_stats())
 	var guard := 100000
 	while run.status == RunState.Status.ACTIVE and guard > 0:
-		run.step()
 		guard -= 1
+		if run.phase == RunState.Phase.CHOOSING:
+			run.choose(RunState.RoomType.NORMAL)
+			continue
+		run.step()
 	assert_true(guard > 0, "Run in '%s' terminiert" % def.id)
 	return run.status == RunState.Status.VICTORY
 

@@ -126,6 +126,40 @@ beim Prestige). `GameState.hero_stats()` ist der einzige Ort, an dem
 Heldenwerte berechnet werden – Talente und Ausrüstung docken später
 dort an, analog zu `production_per_second()` auf der Idle-Seite.
 
+### Interaktion im Run (v2)
+
+Aktives Spielen ist optional, beschleunigt aber – die GDD-Regel.
+Drei Stellschrauben, alle in der Simulation, nicht in der UI:
+
+- **Fähigkeiten:** *Zuschlagen* (Extra-Schlag ×1.5 ohne Gegenschlag,
+  kurzer Cooldown) und *Verschnaufen* (+30% LP, langer Cooldown).
+  Cooldowns sind Kampf-Ticks im `step()` – deterministisch testbar.
+- **Raumwahl:** Nach jedem geschafften Raum (außer direkt vor dem
+  Boss) ruht der Run in `Phase.CHOOSING`, bis der Spieler wählt:
+  *Weitergehen* / *Schatzkammer* (Wächter ×1.6 LP / ×1.3 ATK, dafür
+  ×2 Gold und ×3 Drop-Chance) / *Rastplatz* (+40% LP, keine Beute).
+  Risiko gegen Beute ist die eigentliche Entscheidung.
+- **Zeit steht bei der Wahl still** – kein Reflex-Druck, passt zum
+  Idle-Publikum.
+
+### Drops & Beuteverwaltung (v2)
+
+Gegner würfeln beim Tod gegen die Drop-Tabelle des Dungeons
+(`drops` pro Raumgegner, `boss_drops` für den Boss; Einträge
+`{item_id, chance}`). Der Zufall ist **geseedet** (`RunState.start`
+nimmt einen Seed) – gleicher Seed, gleiche Wege, gleiche Drops; Tests
+nutzen das. Items sind Content (`data/items.json`, von ContentDB
+validiert inkl. Querverweis aus den Drop-Tabellen) und zerfallen in
+zwei Welten, exakt entlang der GDD-Regel "Ausrüstung vergänglich,
+Wissen bleibt":
+
+- **Trophäen** → Dorf-Inventar (village-Sektion), beim Krämer
+  verkaufbar (Erlös zählt als verdient → Ruhm), weg beim Prestige.
+  Später werden sie Crafting-Material.
+- **Liedfragmente** → Liederbuch (perma-Sektion), überleben das
+  Prestige; als Boss-Drops der Wiederholungsgrund für Dungeons und
+  die Vorstufe zur Klassen-Freischaltung (GDD §5).
+
 **Balance-Wächter in CI:** Tests simulieren echte Runs mit den echten
 Daten aus `data/dungeons.json` und beweisen: Dungeon 1 ist mit
 Basiswerten schaffbar, Dungeon 2 erst mit Training (aber mit

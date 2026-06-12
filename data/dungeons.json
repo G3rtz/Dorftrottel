@@ -17,7 +17,14 @@
     "gold_growth": 1.25,
     "boss_gold": 40,
     "completion_bonus": 60,
-    "unlocked_by": ""
+    "unlocked_by": "",
+    "drops": [
+      { "item_id": "rattenzahn", "chance": 0.3 }
+    ],
+    "boss_drops": [
+      { "item_id": "rattenkrone", "chance": 1.0 },
+      { "item_id": "lied_vom_keller", "chance": 0.35 }
+    ]
   },
   {
     "id": "eis_hoehle",
@@ -37,6 +44,13 @@
     "gold_growth": 1.3,
     "boss_gold": 600,
     "completion_bonus": 900,
-    "unlocked_by": "ratten_keller"
+    "unlocked_by": "ratten_keller",
+    "drops": [
+      { "item_id": "eiskristall", "chance": 0.3 }
+    ],
+    "boss_drops": [
+      { "item_id": "golemherz", "chance": 1.0 },
+      { "item_id": "lied_vom_ewigen_eis", "chance": 0.35 }
+    ]
   }
 ]

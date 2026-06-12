@@ -8,6 +8,7 @@ const GENERATORS_PATH := "res://data/generators.json"
 const DUNGEONS_PATH := "res://data/dungeons.json"
 const PERMA_UPGRADES_PATH := "res://data/perma_upgrades.json"
 const SAGA_LINES_PATH := "res://data/saga_lines.json"
+const ITEMS_PATH := "res://data/items.json"
 
 static var _generators: Array[GeneratorDef] = []
 static var _generators_loaded := false
@@ -17,6 +18,8 @@ static var _perma_upgrades: Array[PermaUpgradeDef] = []
 static var _perma_upgrades_loaded := false
 static var _saga_lines: Array[String] = []
 static var _saga_lines_loaded := false
+static var _items: Array[ItemDef] = []
+static var _items_loaded := false
 
 
 static func generators() -> Array[GeneratorDef]:
@@ -42,6 +45,20 @@ static func dungeons() -> Array[DungeonDef]:
 
 static func dungeon(id: String) -> DungeonDef:
 	for def in dungeons():
+		if def.id == id:
+			return def
+	return null
+
+
+static func items() -> Array[ItemDef]:
+	if not _items_loaded:
+		_items = _load_items(ITEMS_PATH)
+		_items_loaded = true
+	return _items
+
+
+static func item(id: String) -> ItemDef:
+	for def in items():
 		if def.id == id:
 			return def
 	return null
@@ -125,11 +142,44 @@ static func _load_dungeons(path: String) -> Array[DungeonDef]:
 			continue
 		seen_ids[def.id] = true
 		result.append(def)
-	# Querverweis-Prüfung: unlocked_by muss auf einen existierenden
-	# Dungeon zeigen, sonst wäre der Eintrag unerreichbar.
+	# Querverweis-Prüfungen: unlocked_by muss auf einen existierenden
+	# Dungeon zeigen, Drop-Tabellen auf existierende Items.
 	for def in result:
 		if not def.unlocked_by.is_empty() and not seen_ids.has(def.unlocked_by):
 			push_error("ContentDB: Dungeon '%s' verweist auf unbekannten Dungeon '%s'" % [def.id, def.unlocked_by])
+		for table: Array in [def.drops, def.boss_drops]:
+			for entry: Variant in table:
+				var item_id := str(entry.get("item_id", ""))
+				if item(item_id) == null:
+					push_error("ContentDB: Dungeon '%s' droppt unbekanntes Item '%s'" % [def.id, item_id])
+	return result
+
+
+static func _load_items(path: String) -> Array[ItemDef]:
+	var result: Array[ItemDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := ItemDef.from_dict(entry)
+		var problems := def.validate()
+		if not problems.is_empty():
+			push_error("ContentDB: Item '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Item-ID '%s'" % def.id)
+			continue
+		seen_ids[def.id] = true
+		result.append(def)
 	return result
 
 

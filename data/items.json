@@ -1,0 +1,44 @@
+[
+  {
+    "id": "rattenzahn",
+    "display_name": "Rattenzahn",
+    "flavor": "Spitz. Der Krämer zahlt pro Stück.",
+    "type": "trophy",
+    "gold_value": 8
+  },
+  {
+    "id": "rattenkrone",
+    "display_name": "Die Rattenkrone",
+    "flavor": "Klein, dreckig, erstaunlich majestätisch.",
+    "type": "trophy",
+    "gold_value": 150
+  },
+  {
+    "id": "eiskristall",
+    "display_name": "Eiskristall",
+    "flavor": "Schmilzt nicht. Unheimlich.",
+    "type": "trophy",
+    "gold_value": 90
+  },
+  {
+    "id": "golemherz",
+    "display_name": "Golemherz",
+    "flavor": "Tickt noch. Bitte nicht schütteln.",
+    "type": "trophy",
+    "gold_value": 1200
+  },
+  {
+    "id": "lied_vom_keller",
+    "display_name": "Liedfragment: Das Lied vom Keller",
+    "flavor": "Eine Strophe über Ratten. Die Barden sammeln schon.",
+    "type": "song_fragment",
+    "gold_value": 0
+  },
+  {
+    "id": "lied_vom_ewigen_eis",
+    "display_name": "Liedfragment: Das ewige Eis",
+    "flavor": "Wer es summt, friert weniger. Behaupten die Barden.",
+    "type": "song_fragment",
+    "gold_value": 0
+  }
+]

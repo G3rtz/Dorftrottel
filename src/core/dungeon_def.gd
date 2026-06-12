@@ -24,6 +24,10 @@ var boss_gold: float = 0.0
 var completion_bonus: float = 0.0
 ## ID des Dungeons, der zuerst abgeschlossen sein muss ("" = sofort verfügbar).
 var unlocked_by: String = ""
+## Drop-Tabellen: Einträge {item_id, chance}. drops gilt pro besiegtem
+## Raumgegner, boss_drops nur für den Boss.
+var drops: Array = []
+var boss_drops: Array = []
 
 
 static func from_dict(data: Dictionary) -> DungeonDef:
@@ -46,6 +50,8 @@ static func from_dict(data: Dictionary) -> DungeonDef:
 	def.boss_gold = float(data.get("boss_gold", 0.0))
 	def.completion_bonus = float(data.get("completion_bonus", 0.0))
 	def.unlocked_by = str(data.get("unlocked_by", ""))
+	def.drops = data.get("drops", [])
+	def.boss_drops = data.get("boss_drops", [])
 	return def
 
 
@@ -71,6 +77,14 @@ func validate() -> PackedStringArray:
 		problems.append("Boss-Multiplikatoren müssen >= 1 sein")
 	if heal_per_room < 0.0 or gold_per_enemy < 0.0 or boss_gold < 0.0 or completion_bonus < 0.0:
 		problems.append("Beträge dürfen nicht negativ sein")
+	for table: Array in [drops, boss_drops]:
+		for entry: Variant in table:
+			if not entry is Dictionary or str(entry.get("item_id", "")).is_empty():
+				problems.append("Drop-Eintrag ohne item_id")
+				continue
+			var chance := float(entry.get("chance", 0.0))
+			if chance <= 0.0 or chance > 1.0:
+				problems.append("Drop-Chance von '%s' muss in (0, 1] liegen" % entry.get("item_id"))
 	return problems
 
 

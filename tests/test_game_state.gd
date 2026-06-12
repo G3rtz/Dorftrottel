@@ -145,6 +145,40 @@ func test_bank_run_result_on_defeat() -> void:
 	assert_eq(state.runs_completed, 0)
 
 
+func test_item_routing_and_selling() -> void:
+	var state := GameState.new()
+	# Trophäen landen im Inventar, Liedfragmente im Liederbuch (perma).
+	state.add_item("rattenzahn", 3)
+	state.add_item("lied_vom_keller")
+	assert_eq(state.item_count("rattenzahn"), 3)
+	assert_eq(state.fragment_count("lied_vom_keller"), 1)
+	assert_eq(state.item_count("lied_vom_keller"), 0, "Fragmente liegen nicht im Inventar")
+	state.add_item("gibt_es_nicht")  # darf nur meckern, nicht crashen
+	state.add_item("rattenzahn", -5)
+	assert_eq(state.item_count("rattenzahn"), 3, "negative Mengen werden ignoriert")
+
+	var value := ContentDB.item("rattenzahn").gold_value
+	assert_eq(state.sell_item("rattenzahn", 2), 2)
+	assert_almost(state.get_resource(Balance.PRIMARY_RESOURCE).to_float(), value * 2.0, 1e-6)
+	assert_eq(state.item_count("rattenzahn"), 1)
+	assert_eq(state.sell_item("rattenzahn", 99), 1, "Überverkauf wird gekappt")
+	assert_eq(state.item_count("rattenzahn"), 0)
+	assert_eq(state.sell_item("lied_vom_keller"), 0, "Lieder sind unverkäuflich")
+	assert_eq(state.fragment_count("lied_vom_keller"), 1)
+
+
+func test_bank_run_result_with_items() -> void:
+	var state := GameState.new()
+	state.bank_run_result({
+		"dungeon_id": "ratten_keller",
+		"victory": true,
+		"gold": BigNum.from_float(100.0),
+		"items": {"rattenzahn": 2, "lied_vom_keller": 1},
+	})
+	assert_eq(state.item_count("rattenzahn"), 2)
+	assert_eq(state.fragment_count("lied_vom_keller"), 1)
+
+
 func test_pending_fame_formula() -> void:
 	var state := GameState.new()
 	assert_true(state.pending_fame().is_zero(), "ohne Verdienst kein Ruhm")
@@ -177,6 +211,8 @@ func test_prestige_resets_and_keeps() -> void:
 	state.dungeons_cleared["ratten_keller"] = true
 	state.runs_completed = 2
 	state.total_playtime = 500.0
+	state.add_item("rattenzahn", 5)
+	state.add_item("lied_vom_keller", 2)
 
 	var report := state.prestige()
 	assert_false(report.is_empty())
@@ -188,10 +224,12 @@ func test_prestige_resets_and_keeps() -> void:
 	assert_eq(state.owned(gen.id), 0)
 	assert_eq(state.hero_hp_level, 0)
 	assert_eq(state.hero_atk_level, 0)
+	assert_eq(state.item_count("rattenzahn"), 0, "Trophäen sind vergänglich")
 	assert_true(state.pending_fame().is_zero(), "Ruhm-Zähler beginnt von vorn")
 
 	# Bleibt: alles im Hirn (perma + meta).
 	assert_almost(state.fame.to_float(), 2.0, 1e-9)
+	assert_eq(state.fragment_count("lied_vom_keller"), 2, "Lieder überleben das Prestige")
 	assert_true(state.dungeons_cleared.has("ratten_keller"))
 	assert_eq(state.runs_completed, 2)
 	assert_eq(state.prestige_count, 1)
@@ -262,6 +300,8 @@ func test_serialization_roundtrip() -> void:
 	state.runs_completed = 6
 	state.fame = BigNum.from_float(42.0)
 	state.perma_levels["vorauseilender_ruf"] = 3
+	state.add_item("rattenzahn", 7)
+	state.add_item("lied_vom_keller", 2)
 
 	var restored := GameState.from_dict(state.to_dict())
 	assert_big_eq(restored.get_resource("gold"), state.get_resource("gold"))
@@ -275,6 +315,8 @@ func test_serialization_roundtrip() -> void:
 	assert_eq(restored.runs_completed, 6)
 	assert_big_eq(restored.fame, BigNum.from_float(42.0))
 	assert_eq(restored.perma_level("vorauseilender_ruf"), 3)
+	assert_eq(restored.item_count("rattenzahn"), 7)
+	assert_eq(restored.fragment_count("lied_vom_keller"), 2)
 
 	# Durch JSON hindurch (Ints werden Floats) muss es ebenfalls überleben.
 	var json_text := JSON.stringify(state.to_dict())

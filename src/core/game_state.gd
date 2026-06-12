@@ -11,6 +11,7 @@ extends RefCounted
 var resources := {}        # resource_id -> BigNum (aktueller Bestand)
 var lifetime_earned := {}  # resource_id -> BigNum (insgesamt je verdient; treibt Freischaltungen)
 var generators := {}       # generator_id -> int (Anzahl besessen)
+var inventory := {}        # item_id -> int (Trophäen; vergänglich, weg beim Prestige)
 
 # hero-Sektion: resettet beim Prestige.
 var hero_hp_level := 0
@@ -20,6 +21,7 @@ var hero_atk_level := 0
 var dungeons_cleared := {}  # dungeon_id -> true
 var fame := BigNum.zero()   # Ruhm / Legendenpunkte (Prestige-Währung)
 var perma_levels := {}      # perma_upgrade_id -> int
+var song_fragments := {}    # item_id -> int (Liedfragmente, Vorstufe zu Klassen)
 
 # meta-Sektion.
 var total_playtime := 0.0
@@ -151,16 +153,58 @@ func is_dungeon_unlocked(def: DungeonDef) -> bool:
 	return def.unlocked_by.is_empty() or dungeons_cleared.has(def.unlocked_by)
 
 
-## Verbucht das Ergebnis eines beendeten Runs: Beute bleibt immer
-## (auch bei Tod/Flucht), nur der Sieg schaltet den Dungeon dauerhaft
-## frei – das ist die "im Hirn"-Regel aus dem GDD.
+## Verbucht das Ergebnis eines beendeten Runs: Beute (Gold + Items)
+## bleibt immer (auch bei Tod/Flucht), nur der Sieg schaltet den
+## Dungeon dauerhaft frei – das ist die "im Hirn"-Regel aus dem GDD.
 func bank_run_result(result: Dictionary) -> void:
 	var gold: BigNum = result.get("gold", BigNum.zero())
 	if not gold.is_zero():
 		add_resource(Balance.PRIMARY_RESOURCE, gold)
+	var items: Dictionary = result.get("items", {})
+	for item_id: String in items:
+		add_item(item_id, int(items[item_id]))
 	if result.get("victory", false):
 		dungeons_cleared[str(result.get("dungeon_id", ""))] = true
 		runs_completed += 1
+
+
+## Routet einen Drop in die richtige Welt: Trophäen ins (vergängliche)
+## Dorf-Inventar, Liedfragmente in die perma-Sektion.
+func add_item(item_id: String, count: int = 1) -> void:
+	if count <= 0:
+		return
+	var def := ContentDB.item(item_id)
+	if def == null:
+		push_error("GameState: unbekanntes Item '%s'" % item_id)
+		return
+	if def.is_song_fragment():
+		song_fragments[item_id] = fragment_count(item_id) + count
+	else:
+		inventory[item_id] = item_count(item_id) + count
+
+
+func item_count(item_id: String) -> int:
+	return int(inventory.get(item_id, 0))
+
+
+func fragment_count(item_id: String) -> int:
+	return int(song_fragments.get(item_id, 0))
+
+
+## Trophäen beim Krämer versilbern. Gibt die tatsächlich verkaufte
+## Anzahl zurück; der Erlös zählt als verdient (Lifetime → Ruhm).
+func sell_item(item_id: String, count: int = 1) -> int:
+	var def := ContentDB.item(item_id)
+	if def == null or def.gold_value <= 0.0 or count <= 0:
+		return 0
+	var sold := mini(count, item_count(item_id))
+	if sold <= 0:
+		return 0
+	inventory[item_id] = item_count(item_id) - sold
+	if inventory[item_id] == 0:
+		inventory.erase(item_id)
+	add_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(def.gold_value * float(sold)))
+	return sold
 
 
 ## Summierter Effektwert aller Perma-Upgrades eines Typs
@@ -220,10 +264,12 @@ func prestige() -> Dictionary:
 		return {}
 	fame = fame.add(gained)
 	prestige_count += 1
-	# Ablegbares zurücksetzen (village + hero).
+	# Ablegbares zurücksetzen (village + hero). Liedfragmente und
+	# Dungeon-Wissen bleiben – die stecken in der perma-Sektion.
 	resources = {}
 	lifetime_earned = {}
 	generators = {}
+	inventory = {}
 	hero_hp_level = 0
 	hero_atk_level = 0
 	# Startboni der neuen Sage ("beschleunigen, nie skippen").
@@ -261,6 +307,7 @@ func to_dict() -> Dictionary:
 			"resources": serialized_resources,
 			"lifetime_earned": serialized_lifetime,
 			"generators": generators.duplicate(),
+			"inventory": inventory.duplicate(),
 		},
 		"hero": {
 			"hp_level": hero_hp_level,
@@ -270,6 +317,7 @@ func to_dict() -> Dictionary:
 			"dungeons_cleared": dungeons_cleared.duplicate(),
 			"fame": fame.to_dict(),
 			"perma_levels": perma_levels.duplicate(),
+			"song_fragments": song_fragments.duplicate(),
 		},
 		"meta": {
 			"total_playtime": total_playtime,
@@ -291,6 +339,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var serialized_generators: Dictionary = village.get("generators", {})
 	for id: String in serialized_generators:
 		state.generators[id] = int(serialized_generators[id])
+	var serialized_inventory: Dictionary = village.get("inventory", {})
+	for id: String in serialized_inventory:
+		state.inventory[id] = int(serialized_inventory[id])
 	var hero: Dictionary = data.get("hero", {})
 	state.hero_hp_level = int(hero.get("hp_level", 0))
 	state.hero_atk_level = int(hero.get("atk_level", 0))
@@ -302,6 +353,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var levels: Dictionary = perma.get("perma_levels", {})
 	for id: String in levels:
 		state.perma_levels[id] = int(levels[id])
+	var fragments: Dictionary = perma.get("song_fragments", {})
+	for id: String in fragments:
+		state.song_fragments[id] = int(fragments[id])
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))
