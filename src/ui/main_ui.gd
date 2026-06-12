@@ -38,6 +38,9 @@ var _craft_buttons := {}  # recipe_id -> Button
 var _craft_rows := {}  # recipe_id -> Control
 var _equipment_label: Label
 
+var _upgrade_buttons := {}  # upgrade_id -> Button
+var _upgrade_rows := {}  # upgrade_id -> Control
+
 var _saga_section: VBoxContainer
 var _fame_label: Label
 var _prestige_button: Button
@@ -110,6 +113,24 @@ func _build_ui() -> void:
 		vbox.add_child(row)
 		_buy_buttons[def.id] = buy_button
 		_generator_rows[def.id] = row
+
+	# Dorf-Ausbauten: einmalige Multiplikatoren, tauchen auf, sobald
+	# genug Bewohner mithelfen.
+	for def in ContentDB.generator_upgrades():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		row.visible = false
+		var upgrade_button := Button.new()
+		upgrade_button.custom_minimum_size = Vector2(320, 0)
+		upgrade_button.pressed.connect(_on_upgrade_pressed.bind(def.id))
+		row.add_child(upgrade_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		vbox.add_child(row)
+		_upgrade_buttons[def.id] = upgrade_button
+		_upgrade_rows[def.id] = row
 
 	# Beutestand: Trophäen aus Runs verkaufen. Erscheint erst, wenn es
 	# etwas zu verwalten gibt.
@@ -322,6 +343,20 @@ func _refresh() -> void:
 		button.text = "%s (%d) – %s Gold" % [def.display_name, Game.state.owned(def.id), cost.format()]
 		button.disabled = gold.lt(cost)
 
+	# Ausbauten: nur verfügbare zeigen; gekaufte verschwinden.
+	for def in ContentDB.generator_upgrades():
+		var upgrade_row: Control = _upgrade_rows[def.id]
+		upgrade_row.visible = Game.state.is_generator_upgrade_available(def)
+		if not upgrade_row.visible:
+			continue
+		var upgrade_button: Button = _upgrade_buttons[def.id]
+		var generator_def := ContentDB.generator(def.generator_id)
+		upgrade_button.text = "Ausbau: %s (%s ×%s) – %s Gold" % [
+			def.display_name, generator_def.display_name,
+			String.num(def.mult, 1), BigNum.from_float(def.cost).format(),
+		]
+		upgrade_button.disabled = gold.lt(BigNum.from_float(def.cost))
+
 	# Beutestand: nur Zeilen mit Bestand, Sektion nur wenn nicht leer.
 	var any_loot := false
 	for def in ContentDB.items():
@@ -511,6 +546,10 @@ func _on_sell_pressed(item_id: String, count: int) -> void:
 
 func _on_craft_pressed(recipe_id: String) -> void:
 	Game.craft(recipe_id)
+
+
+func _on_upgrade_pressed(upgrade_id: String) -> void:
+	Game.buy_generator_upgrade(upgrade_id)
 
 
 func _on_run_finished(run_result: Dictionary) -> void:

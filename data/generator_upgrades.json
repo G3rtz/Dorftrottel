@@ -1,0 +1,128 @@
+[
+  {
+    "id": "oma_brille",
+    "generator_id": "oma",
+    "display_name": "Omas neue Brille",
+    "flavor": "Jetzt trifft sie deinen Geldbeutel beim Zustecken.",
+    "cost": 150,
+    "mult": 2.0,
+    "unlock_at_owned": 5
+  },
+  {
+    "id": "oma_stricktreff",
+    "generator_id": "oma",
+    "display_name": "Der Stricktreff",
+    "flavor": "Sieben Omas. Sieben Geldbeutel. Ein Trottel.",
+    "cost": 1500,
+    "mult": 2.0,
+    "unlock_at_owned": 25
+  },
+  {
+    "id": "schmied_amboss",
+    "generator_id": "schmied",
+    "display_name": "Neuer Amboss",
+    "flavor": "Klingt besser. Zahlt besser.",
+    "cost": 1000,
+    "mult": 2.0,
+    "unlock_at_owned": 5
+  },
+  {
+    "id": "schmied_lehrjunge",
+    "generator_id": "schmied",
+    "display_name": "Lehrjunge",
+    "flavor": "Macht die Hälfte falsch, aber doppelt so viel davon.",
+    "cost": 10000,
+    "mult": 2.0,
+    "unlock_at_owned": 25
+  },
+  {
+    "id": "wirt_stammtisch",
+    "generator_id": "wirt",
+    "display_name": "Stammtisch der Trottel-Fans",
+    "flavor": "Jeden Abend eine Runde auf den Helden!",
+    "cost": 11000,
+    "mult": 2.0,
+    "unlock_at_owned": 5
+  },
+  {
+    "id": "wirt_festsaal",
+    "generator_id": "wirt",
+    "display_name": "Der Festsaal",
+    "flavor": "Für die Heldengeschichten-Abende. Eintritt: ein Krug.",
+    "cost": 110000,
+    "mult": 2.0,
+    "unlock_at_owned": 25
+  },
+  {
+    "id": "kraemer_marktstand",
+    "generator_id": "kraemer",
+    "display_name": "Marktstand",
+    "flavor": "Beute verkauft sich besser mit handgemaltem Schild.",
+    "cost": 120000,
+    "mult": 2.0,
+    "unlock_at_owned": 5
+  },
+  {
+    "id": "kraemer_karawane",
+    "generator_id": "kraemer",
+    "display_name": "Karawane",
+    "flavor": "Dein Ruhm reist jetzt in drei Nachbardörfer.",
+    "cost": 1200000,
+    "mult": 2.0,
+    "unlock_at_owned": 25
+  },
+  {
+    "id": "muellerin_windrad",
+    "generator_id": "muellerin",
+    "display_name": "Neues Windrad",
+    "flavor": "Dreht sich schneller, seit du vorbeigelaufen bist.",
+    "cost": 1300000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  },
+  {
+    "id": "dorfwache_nachtschicht",
+    "generator_id": "dorfwache",
+    "display_name": "Nachtschicht",
+    "flavor": "Bewacht jetzt auch nachts dein Denkmal in spe.",
+    "cost": 14000000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  },
+  {
+    "id": "priesterin_glocke",
+    "generator_id": "priesterin",
+    "display_name": "Die große Glocke",
+    "flavor": "Läutet bei jeder deiner Heimkehren. Die Spenden klingeln mit.",
+    "cost": 200000000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  },
+  {
+    "id": "buergermeister_feiertag",
+    "generator_id": "buergermeister",
+    "display_name": "Trottel-Feiertag",
+    "flavor": "Einmal im Jahr. Vorerst.",
+    "cost": 3300000000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  },
+  {
+    "id": "hofbarde_chor",
+    "generator_id": "hofbarde",
+    "display_name": "Der Chor",
+    "flavor": "Zwölf Stimmen, ein Refrain: dein Name.",
+    "cost": 51000000000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  },
+  {
+    "id": "alchemistin_filiale",
+    "generator_id": "alchemistin",
+    "display_name": "Filiale in der Hauptstadt",
+    "flavor": "Heldenessenz jetzt auch höfisch abgefüllt.",
+    "cost": 750000000000,
+    "mult": 2.0,
+    "unlock_at_owned": 10
+  }
+]

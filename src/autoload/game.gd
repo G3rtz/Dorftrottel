@@ -57,6 +57,10 @@ func buy_generator(generator_id: String, count: int = 1) -> bool:
 	return purchased
 
 
+func buy_generator_upgrade(upgrade_id: String) -> bool:
+	return state.buy_generator_upgrade(upgrade_id)
+
+
 func train(kind: String) -> bool:
 	return state.train(kind)
 

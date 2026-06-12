@@ -38,5 +38,65 @@
     "base_cost": 12000,
     "cost_growth": 1.15,
     "unlock_at_lifetime": 5000
+  },
+  {
+    "id": "muellerin",
+    "display_name": "Müllerin",
+    "flavor": "Mahlt jetzt extra früh, damit dein Proviant fertig ist.",
+    "resource_id": "gold",
+    "base_rate": 260.0,
+    "base_cost": 130000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 50000
+  },
+  {
+    "id": "dorfwache",
+    "display_name": "Dorfwache",
+    "flavor": "Lässt dich neuerdings durchs Tor, ohne zu lachen.",
+    "resource_id": "gold",
+    "base_rate": 1400.0,
+    "base_cost": 1400000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 500000
+  },
+  {
+    "id": "priesterin",
+    "display_name": "Priesterin",
+    "flavor": "Segnet dein Schwert. Und zwinkert dabei.",
+    "resource_id": "gold",
+    "base_rate": 7800.0,
+    "base_cost": 20000000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 5000000
+  },
+  {
+    "id": "buergermeister",
+    "display_name": "Bürgermeister",
+    "flavor": "Hat eine Statue in Auftrag gegeben. Von dir. Vorsichtshalber.",
+    "resource_id": "gold",
+    "base_rate": 44000.0,
+    "base_cost": 330000000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 50000000
+  },
+  {
+    "id": "hofbarde",
+    "display_name": "Hofbarde",
+    "flavor": "Singt das Lied vom Keller. Die Leute werfen Münzen.",
+    "resource_id": "gold",
+    "base_rate": 260000.0,
+    "base_cost": 5100000000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 500000000
+  },
+  {
+    "id": "alchemistin",
+    "display_name": "Alchemistin",
+    "flavor": "Verkauft dein Badewasser als Heldenessenz. Es läuft hervorragend.",
+    "resource_id": "gold",
+    "base_rate": 1600000.0,
+    "base_cost": 75000000000,
+    "cost_growth": 1.15,
+    "unlock_at_lifetime": 5000000000
   }
 ]

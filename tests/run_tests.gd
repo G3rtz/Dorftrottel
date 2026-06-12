@@ -8,6 +8,7 @@ extends SceneTree
 const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_big_num.gd",
 	"res://tests/test_generator_def.gd",
+	"res://tests/test_generator_upgrades.gd",
 	"res://tests/test_dungeon_def.gd",
 	"res://tests/test_run_state.gd",
 	"res://tests/test_perma_upgrade_def.gd",

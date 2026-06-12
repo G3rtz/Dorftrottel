@@ -11,6 +11,7 @@ extends RefCounted
 var resources := {}        # resource_id -> BigNum (aktueller Bestand)
 var lifetime_earned := {}  # resource_id -> BigNum (insgesamt je verdient; treibt Freischaltungen)
 var generators := {}       # generator_id -> int (Anzahl besessen)
+var generator_upgrades := {}  # upgrade_id -> true (Dorf-Ausbauten; weg beim Prestige)
 var inventory := {}        # item_id -> int (Trophäen; vergänglich, weg beim Prestige)
 
 # hero-Sektion: resettet beim Prestige.
@@ -62,10 +63,37 @@ func production_per_second(resource_id: String) -> BigNum:
 	var total := BigNum.zero()
 	for def in ContentDB.generators():
 		if def.resource_id == resource_id:
-			total = total.add(def.rate_for(owned(def.id)))
+			var rate := def.rate_for(owned(def.id))
+			rate = rate.mul(BigNum.from_float(generator_multiplier(def.id)))
+			total = total.add(rate)
 	if resource_id == Balance.PRIMARY_RESOURCE:
 		total = total.mul(BigNum.from_float(1.0 + perma_bonus("gold_mult")))
 	return total
+
+
+## Produkt aller gekauften Ausbauten eines Generators.
+func generator_multiplier(generator_id: String) -> float:
+	var mult := 1.0
+	for def in ContentDB.generator_upgrades():
+		if def.generator_id == generator_id and generator_upgrades.has(def.id):
+			mult *= def.mult
+	return mult
+
+
+## Sichtbar/kaufbar, sobald genug Stück des Generators besessen werden
+## und der Ausbau noch nicht gekauft ist.
+func is_generator_upgrade_available(def: GeneratorUpgradeDef) -> bool:
+	return not generator_upgrades.has(def.id) and owned(def.generator_id) >= def.unlock_at_owned
+
+
+func buy_generator_upgrade(upgrade_id: String) -> bool:
+	var def := ContentDB.generator_upgrade(upgrade_id)
+	if def == null or not is_generator_upgrade_available(def):
+		return false
+	if not spend_resource(Balance.PRIMARY_RESOURCE, BigNum.from_float(def.cost)):
+		return false
+	generator_upgrades[upgrade_id] = true
+	return true
 
 
 ## Buchung der Produktion in geschlossener Form (Rate * Zeit) – funktioniert
@@ -319,6 +347,7 @@ func prestige() -> Dictionary:
 	resources = {}
 	lifetime_earned = {}
 	generators = {}
+	generator_upgrades = {}
 	inventory = {}
 	hero_hp_level = 0
 	hero_atk_level = 0
@@ -358,6 +387,7 @@ func to_dict() -> Dictionary:
 			"resources": serialized_resources,
 			"lifetime_earned": serialized_lifetime,
 			"generators": generators.duplicate(),
+			"generator_upgrades": generator_upgrades.duplicate(),
 			"inventory": inventory.duplicate(),
 		},
 		"hero": {
@@ -392,6 +422,9 @@ static func from_dict(data: Dictionary) -> GameState:
 	var serialized_generators: Dictionary = village.get("generators", {})
 	for id: String in serialized_generators:
 		state.generators[id] = int(serialized_generators[id])
+	var serialized_upgrades: Dictionary = village.get("generator_upgrades", {})
+	for id: String in serialized_upgrades:
+		state.generator_upgrades[id] = true
 	var serialized_inventory: Dictionary = village.get("inventory", {})
 	for id: String in serialized_inventory:
 		state.inventory[id] = int(serialized_inventory[id])

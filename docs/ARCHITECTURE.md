@@ -165,6 +165,27 @@ Daten aus `data/dungeons.json` und beweisen: Dungeon 1 ist mit
 Basiswerten schaffbar, Dungeon 2 erst mit Training (aber mit
 vertretbar viel). Balance-Edits, die das brechen, scheitern in CI.
 
+### Crafting (v1)
+
+Die "goldene Regel" als System: `RecipeDef` (`data/recipes.json`)
+braucht Gold (Dorf) + Trophäen (Beute) und setzt das Ergebnis in
+einen Ausrüstungs-Slot (weapon/armor, flache ATK/LP-Boni über
+`hero_stats()`). Rezept-Wissen ist perma (Start-Rezepte oder
+Boss-Drops vom Item-Typ "recipe", Duplikate verpuffen), die
+geschmiedete Ausrüstung ist hero-Sektion und damit weg beim
+Prestige – "Ausrüstung vergänglich, Wissen bleibt". Verkaufen
+oder verschmieden ist die Beutestand-Entscheidung.
+
+### Dorf-Ausbauten
+
+`GeneratorUpgradeDef` (`data/generator_upgrades.json`): einmalige
+Raten-Multiplikatoren pro Generator, freigeschaltet ab
+`unlock_at_owned` Stück – der klassische "Kauf mich!"-Moment.
+Multiplikatoren stapeln multiplikativ in
+`GameState.generator_multiplier()`, village-Sektion (weg beim
+Prestige). Das Dorf hat die vollen 10 Bewohner-Generatoren aus der
+GDD-Checkliste.
+
 ## Prestige: Die Barden-Sage (v1)
 
 **Ruhm-Formel** (GDD §8 beantwortet):
