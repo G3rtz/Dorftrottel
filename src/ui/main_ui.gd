@@ -21,6 +21,9 @@ var _hero_label: Label
 var _train_hp_button: Button
 var _train_atk_button: Button
 
+var _class_buttons := {}  # class_id -> Button
+var _class_infos := {}  # class_id -> Label
+
 var _dungeon_buttons := {}  # dungeon_id -> Button
 var _dungeon_rows := {}  # dungeon_id -> Control
 var _run_panel: VBoxContainer
@@ -74,6 +77,7 @@ func _ready() -> void:
 	EventBus.run_finished.connect(_on_run_finished)
 	EventBus.prestige_performed.connect(_on_prestige_performed)
 	EventBus.tale_earned.connect(_on_tale_earned)
+	EventBus.class_unlocked.connect(_on_class_unlocked)
 
 
 func _process(_delta: float) -> void:
@@ -231,6 +235,25 @@ func _build_ui() -> void:
 	_train_atk_button.pressed.connect(func() -> void: Game.train("atk"))
 	train_row.add_child(_train_atk_button)
 	vbox.add_child(train_row)
+
+	# Klassen: Versionen der Sage. Erscheint, sobald mehr als die
+	# Starter-Klasse existiert (also sobald eine zweite freigeschaltet
+	# werden kann).
+	vbox.add_child(HSeparator.new())
+	vbox.add_child(_section_label("Versionen der Sage"))
+	for def in ContentDB.classes():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var pick_button := Button.new()
+		pick_button.custom_minimum_size = Vector2(220, 0)
+		pick_button.pressed.connect(_on_class_pressed.bind(def.id))
+		row.add_child(pick_button)
+		var info := Label.new()
+		info.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(info)
+		vbox.add_child(row)
+		_class_buttons[def.id] = pick_button
+		_class_infos[def.id] = info
 
 	vbox.add_child(HSeparator.new())
 	vbox.add_child(_section_label("Dungeons"))
@@ -523,6 +546,24 @@ func _refresh() -> void:
 	_train_atk_button.disabled = gold.lt(atk_cost)
 
 	var run_active := Game.is_run_active()
+
+	# Klassen: aktive markieren, freigeschaltete wählbar, gesperrte mit
+	# ihrer Bedingung. Wahl nur außerhalb eines Runs.
+	var active_id := Game.state.active_class_def().id if Game.state.active_class_def() != null else ""
+	for def in ContentDB.classes():
+		var pick_button: Button = _class_buttons[def.id]
+		var info: Label = _class_infos[def.id]
+		var unlocked := Game.state.is_class_unlocked(def)
+		var is_active := def.id == active_id
+		if not unlocked:
+			pick_button.text = "%s 🔒" % def.display_name
+			pick_button.disabled = true
+			info.text = _class_unlock_hint(def)
+		else:
+			pick_button.text = "%s%s" % ["▶ " if is_active else "", def.display_name]
+			pick_button.disabled = is_active or run_active
+			info.text = "LP ×%s · ATK ×%s" % [String.num(def.hp_mult, 2), String.num(def.atk_mult, 2)]
+
 	for def in ContentDB.dungeons():
 		var row: Control = _dungeon_rows[def.id]
 		row.visible = Game.state.is_dungeon_unlocked(def)
@@ -787,6 +828,29 @@ func _on_tale_earned(tale_id: String) -> void:
 	var def := ContentDB.tale(tale_id)
 	if def != null:
 		_append_log("Neue Tavernenerzählung: „%s“" % def.display_name)
+
+
+func _on_class_pressed(class_id: String) -> void:
+	Game.set_active_class(class_id)
+
+
+func _on_class_unlocked(class_id: String) -> void:
+	var def := ContentDB.class_def(class_id)
+	if def != null:
+		_append_log("Ein Barde erzählt die Geschichte anders… %s freigeschaltet!" % def.display_name)
+
+
+## Welche Erzählung(en) der Spieler für diese Klasse noch braucht.
+func _class_unlock_hint(def: ClassDef) -> String:
+	var missing: Array[String] = []
+	for tale_id: String in def.unlock_tales:
+		if not Game.state.has_tale(tale_id):
+			var tale := ContentDB.tale(tale_id)
+			if tale != null:
+				missing.append("„%s“" % tale.display_name)
+	if missing.is_empty() and def.unlock_tale_count > 0:
+		return "Erzählungen nötig: %d" % def.unlock_tale_count
+	return "Braucht: " + ", ".join(missing)
 
 
 func _on_offline_progress(report: Dictionary) -> void:

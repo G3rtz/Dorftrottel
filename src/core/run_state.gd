@@ -80,8 +80,9 @@ var _rng := RandomNumberGenerator.new()
 ## hero_stats: {"hp": BigNum, "atk": BigNum} – kommt aus
 ## GameState.hero_stats(). rng_seed macht Drops, Absichten und
 ## Segens-Auswahl reproduzierbar. boon_pool == null → echter Pool aus
-## ContentDB; Tests übergeben [] für einen segenlosen Run.
-static func start(dungeon_def: DungeonDef, hero_stats: Dictionary, rng_seed: int = 0, boon_pool = null) -> RunState:
+## ContentDB; Tests übergeben [] für einen segenlosen Run. start_boons
+## (boon_ids) sind die Klassen-Start-Segen – müssen im Pool liegen.
+static func start(dungeon_def: DungeonDef, hero_stats: Dictionary, rng_seed: int = 0, boon_pool = null, start_boons = null) -> RunState:
 	var run := RunState.new()
 	run.dungeon = dungeon_def
 	run.hero_max_hp = hero_stats["hp"]
@@ -94,6 +95,12 @@ static func start(dungeon_def: DungeonDef, hero_stats: Dictionary, rng_seed: int
 		run.boon_pool = ContentDB.boons()
 	else:
 		run.boon_pool.assign(boon_pool)
+	# Klassen-Start-Segen anwenden (vor dem ersten Gegner).
+	if start_boons != null:
+		var sink: Array[Dictionary] = []
+		for boon_id: String in start_boons:
+			if run._boon_def(boon_id) != null:
+				run._apply_boon(boon_id, sink)
 	run._rng.seed = rng_seed
 	run._spawn_enemy()
 	return run

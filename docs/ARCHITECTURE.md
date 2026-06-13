@@ -306,17 +306,33 @@ Niederlage geben Geschichten – sehr Dorftrottel.
 
 `bank_run_result()` prüft alle offenen Taten und gibt die neu
 verdienten zurück (`EventBus.tale_earned` je Stück). Erzählungen sind
-**einmalig und perma** ("die Taverne vergisst nichts") und die
-qualitative Vorstufe zu Klassen: Die verlangen später bestimmte
-Erzählungen plus Mindestanzahl. Ein Datenwächter-Test erzwingt, dass
-jeder Dungeon eine Sieg-Erzählung hat.
+**einmalig und perma** ("die Taverne vergisst nichts"). Ein
+Datenwächter-Test erzwingt, dass jeder Dungeon eine Sieg-Erzählung hat.
+
+### Klassen: Versionen der Sage
+
+`ClassDef` (`data/classes.json`): derselbe Trottel, anders erzählt.
+Mechanisch bewusst schlank (GDD-Scope-Warnung, genau 3 Klassen):
+Helden-Stat-Multiplikatoren (`hp_mult`/`atk_mult`, greifen in
+`hero_stats()`) plus optionale **Start-Segen**, die das Boon-System
+wiederverwenden (`RunState.start(..., start_boons)`). Keine neue
+Kampfmechanik.
+
+- **Krieger** (Starter, kanonisch, 1.0/1.0 → Balance unverändert),
+  **Magier** (Glaskanone, schaltet via *kein_kratzer* frei),
+  **Paladin** (Panzer, via *der_berg_taute*).
+- **Freischaltung ist abgeleitet, nicht gespeichert:**
+  `ClassDef.is_unlocked_by(tales_earned)` (alle Erzählungen + Mindest-
+  zahl). Persistiert wird nur `active_class`. `Game._finish_run`
+  vergleicht den Freischalt-Stand vor/nach dem Verbuchen und feuert
+  `EventBus.class_unlocked` für neu Erreichtes.
+- `active_class_def()` fällt auf die erste Starter-Klasse zurück, wenn
+  nichts (Gültiges) gewählt ist – es ist immer eine Sage erzählbar.
+- ContentDB validiert Querverweise (Freischalt-Erzählungen + Start-
+  Segen existieren) und dass es eine Starter-Klasse gibt.
 
 ## Bewusst noch nicht gebaut
 
-- **Klassen:** Versionen der Sage, freigeschaltet über
-  Tavernenerzählungen (bestimmte + Mindestanzahl). Das Tracking
-  steht; es fehlen ClassDef, Auswahl beim Sagenbeginn und
-  klassenspezifische Modifikatoren über `hero_stats()`.
 - **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /
   `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
   an – das sind bereits die einzigen Orte, an denen Raten und Werte

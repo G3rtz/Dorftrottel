@@ -12,6 +12,7 @@ const ITEMS_PATH := "res://data/items.json"
 const RECIPES_PATH := "res://data/recipes.json"
 const TALES_PATH := "res://data/tales.json"
 const BOONS_PATH := "res://data/boons.json"
+const CLASSES_PATH := "res://data/classes.json"
 const GENERATOR_UPGRADES_PATH := "res://data/generator_upgrades.json"
 
 ## Hohe Ausbau-Staffeln in althergebrachter Idle-Manier: werden für
@@ -47,6 +48,8 @@ static var _tales: Array[TaleDef] = []
 static var _tales_loaded := false
 static var _boons: Array[BoonDef] = []
 static var _boons_loaded := false
+static var _classes: Array[ClassDef] = []
+static var _classes_loaded := false
 static var _generator_upgrades: Array[GeneratorUpgradeDef] = []
 static var _generator_upgrades_loaded := false
 
@@ -169,6 +172,20 @@ static func boons() -> Array[BoonDef]:
 
 static func boon(id: String) -> BoonDef:
 	for def in boons():
+		if def.id == id:
+			return def
+	return null
+
+
+static func classes() -> Array[ClassDef]:
+	if not _classes_loaded:
+		_classes = _load_classes(CLASSES_PATH)
+		_classes_loaded = true
+	return _classes
+
+
+static func class_def(id: String) -> ClassDef:
+	for def in classes():
 		if def.id == id:
 			return def
 	return null
@@ -364,6 +381,52 @@ static func _load_boons(path: String) -> Array[BoonDef]:
 			continue
 		seen_ids[def.id] = true
 		result.append(def)
+	return result
+
+
+static func _load_classes(path: String) -> Array[ClassDef]:
+	var result: Array[ClassDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	var has_starter := false
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := ClassDef.from_dict(entry)
+		var problems := def.validate()
+		if not problems.is_empty():
+			push_error("ContentDB: Klasse '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Klassen-ID '%s'" % def.id)
+			continue
+		# Querverweise: Freischalt-Erzählungen und Start-Segen müssen
+		# existieren, sonst wäre die Klasse unerreichbar oder kaputt.
+		var broken := false
+		for tale_id: String in def.unlock_tales:
+			if tale(tale_id) == null:
+				push_error("ContentDB: Klasse '%s' verlangt unbekannte Erzählung '%s'" % [def.id, tale_id])
+				broken = true
+		for boon_id: String in def.start_boons:
+			if boon(boon_id) == null:
+				push_error("ContentDB: Klasse '%s' startet mit unbekanntem Segen '%s'" % [def.id, boon_id])
+				broken = true
+		if broken:
+			continue
+		if def.is_starter():
+			has_starter = true
+		seen_ids[def.id] = true
+		result.append(def)
+	if not result.is_empty() and not has_starter:
+		push_error("ContentDB: keine Starter-Klasse definiert – der Einstieg wäre gesperrt")
 	return result
 
 

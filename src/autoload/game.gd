@@ -74,9 +74,19 @@ func start_run(dungeon_id: String) -> bool:
 	var def := ContentDB.dungeon(dungeon_id)
 	if def == null or not state.is_dungeon_unlocked(def):
 		return false
-	run = RunState.start(def, state.hero_stats(), randi())
+	run = RunState.start(def, state.hero_stats(), randi(), null, state.active_class_start_boons())
 	EventBus.run_started.emit(def.id)
 	return true
+
+
+## Klasse wählen (nur außerhalb eines Runs sinnvoll). Persistiert sofort.
+func set_active_class(class_id: String) -> bool:
+	if is_run_active():
+		return false
+	var changed := state.set_active_class(class_id)
+	if changed:
+		save_now()
+	return changed
 
 
 ## Ein Spielerzug im rundenbasierten Kampf. Kann den Run beenden
@@ -152,11 +162,17 @@ func buy_perma(upgrade_id: String) -> bool:
 
 func _finish_run() -> void:
 	var run_result := run.result()
+	# Klassen-Freischaltung ist aus den Erzählungen abgeleitet: Stand
+	# davor merken, um neu freigeschaltete danach zu melden.
+	var classes_before := state.unlocked_class_ids()
 	var new_tales := state.bank_run_result(run_result)
 	save_now()
 	EventBus.run_finished.emit(run_result)
 	for tale_id in new_tales:
 		EventBus.tale_earned.emit(tale_id)
+	for class_id in state.unlocked_class_ids():
+		if not classes_before.has(class_id):
+			EventBus.class_unlocked.emit(class_id)
 
 
 func save_now() -> void:

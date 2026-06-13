@@ -126,7 +126,7 @@ Klassen sind teuer (eigene Talente, Ausrüstungslogik, Balancing – multiplizie
 - [x] Kampf rundenbasiert & manuell → *Angriff/Zuschlagen/Blocken/Verschnaufen, Gegner telegrafieren schwere Schläge*
 - [x] In-Run-Builds: Segen (Boons) → *1 aus 3 nach jedem Raum, 9 Effekte in data/boons.json, nur für den Run; daraus echte Builds*
 - [x] Tavernenerzählungen: Taten-Tracking im Run → *9 Erzählungen in data/tales.json, einmalig & perma; auch Flucht und Niederlage geben Geschichten*
-- [ ] Klassen implementieren (Freischaltung über Tavernenerzählungen)
+- [x] Klassen implementieren → *3 Klassen (Krieger/Magier/Paladin) in data/classes.json, freigeschaltet über Tavernenerzählungen, Stat-Multiplikatoren + Start-Segen*
 - [x] Ersten Dungeon-Loop skizzieren → *v1 gebaut: Räume + Boss, Tod = Run endet & Beute bleibt, Sieg schaltet dauerhaft frei (Details in ARCHITECTURE.md)*
 - [x] Erste 10 Dorf-Generatoren mit Bewohner-Flavor auflisten → *in data/generators.json, von der Oma bis zur Alchemistin, plus Ausbauten in data/generator_upgrades.json*
 - [x] Prestige-Formel (Ruhm-Gewinn) grob festlegen → *v1: Ruhm = ⌊√(Lifetime-Gold der Sage / 50k)⌋, Perma-Baum mit Multiplikatoren + Startgold (Details in ARCHITECTURE.md)*

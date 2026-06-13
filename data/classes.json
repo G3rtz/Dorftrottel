@@ -1,0 +1,32 @@
+[
+  {
+    "id": "krieger",
+    "display_name": "Der Krieger",
+    "flavor": "Die wahre Geschichte: ein dummer Junge mit einem Knüppel. Alles danach ist nur Ausschmückung.",
+    "unlock_tales": [],
+    "unlock_tale_count": 0,
+    "hp_mult": 1.0,
+    "atk_mult": 1.0,
+    "start_boons": []
+  },
+  {
+    "id": "magier",
+    "display_name": "Der Magier",
+    "flavor": "„Aus der Ferne, sage ich euch! Keinen Kratzer hat er abbekommen – weil er sie alle verzaubert hat, bevor sie ihn erreichten.“",
+    "unlock_tales": ["kein_kratzer"],
+    "unlock_tale_count": 0,
+    "hp_mult": 0.65,
+    "atk_mult": 1.6,
+    "start_boons": ["schwungvoll"]
+  },
+  {
+    "id": "paladin",
+    "display_name": "Der Paladin",
+    "flavor": "„Geheiligt vom Berg selbst! Wo dieser Mann hintritt, schließen sich die Wunden – seine zuerst.“",
+    "unlock_tales": ["der_berg_taute"],
+    "unlock_tale_count": 0,
+    "hp_mult": 1.5,
+    "atk_mult": 0.8,
+    "start_boons": ["siegesschmaus"]
+  }
+]

@@ -31,8 +31,12 @@ var perma_levels := {}      # perma_upgrade_id -> int
 var song_fragments := {}    # item_id -> int
 var recipes_known := {}     # recipe_id -> true (gelerntes Schmiedewissen)
 ## Tavernenerzählungen: einmal verdiente Taten. Geschichten vergisst
-## die Taverne nie – Klassen setzen später bestimmte voraus.
+## die Taverne nie – sie schalten Klassen frei.
 var tales_earned := {}      # tale_id -> true
+## Gewählte Klasse (Version der Sage). Welche Klassen freigeschaltet
+## sind, ist rein aus tales_earned abgeleitet; nur die Auswahl wird
+## gespeichert. Default: die kanonische Starter-Klasse.
+var active_class := ""
 
 # meta-Sektion.
 var total_playtime := 0.0
@@ -188,8 +192,9 @@ func is_generator_visible(def: GeneratorDef) -> bool:
 
 
 ## Heldenwerte aus Basis + Training. Der einzige Ort, an dem Werte für
-## Runs berechnet werden – Talente, Ausrüstung und Perma-Boni docken
-## später hier an (analog zu production_per_second für die Idle-Seite).
+## Runs berechnet werden – Ausrüstung, Perma-Boni, Liedfragmente und
+## die gewählte Klasse docken hier an (analog zu production_per_second
+## für die Idle-Seite).
 func hero_stats() -> Dictionary:
 	var hp := Balance.HERO_BASE_HP + Balance.HERO_HP_PER_TRAINING * float(hero_hp_level)
 	var atk := Balance.HERO_BASE_ATK + Balance.HERO_ATK_PER_TRAINING * float(hero_atk_level)
@@ -198,11 +203,54 @@ func hero_stats() -> Dictionary:
 		if recipe_def != null:
 			hp += recipe_def.hp_bonus
 			atk += recipe_def.atk_bonus
-	var atk_total := BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult")))
+	var cls := active_class_def()
+	var cls_hp_mult := cls.hp_mult if cls != null else 1.0
+	var cls_atk_mult := cls.atk_mult if cls != null else 1.0
+	var atk_total := BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult")) * cls_atk_mult)
 	return {
-		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult"))),
+		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult")) * cls_hp_mult),
 		"atk": atk_total.mul(fragment_atk_multiplier()),
 	}
+
+
+## Die aktive Klasse, mit Rückfall auf die erste Starter-Klasse, wenn
+## nichts (Gültiges) gewählt ist – so ist immer eine Sage erzählbar.
+func active_class_def() -> ClassDef:
+	var def := ContentDB.class_def(active_class)
+	if def != null:
+		return def
+	for candidate in ContentDB.classes():
+		if candidate.is_starter():
+			return candidate
+	return null
+
+
+func is_class_unlocked(def: ClassDef) -> bool:
+	return def != null and def.is_unlocked_by(tales_earned)
+
+
+## Liste der freigeschalteten Klassen-IDs – abgeleitet, nicht gespeichert.
+func unlocked_class_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for def in ContentDB.classes():
+		if is_class_unlocked(def):
+			ids.append(def.id)
+	return ids
+
+
+## Klasse wählen – nur wenn freigeschaltet. Gibt Erfolg zurück.
+func set_active_class(class_id: String) -> bool:
+	var def := ContentDB.class_def(class_id)
+	if def == null or not is_class_unlocked(def):
+		return false
+	active_class = class_id
+	return true
+
+
+## Start-Segen der aktiven Klasse (boon_ids) für den nächsten Run.
+func active_class_start_boons() -> Array:
+	var def := active_class_def()
+	return def.start_boons.duplicate() if def != null else []
 
 
 func training_level(kind: String) -> int:
@@ -475,6 +523,7 @@ func to_dict() -> Dictionary:
 			"song_fragments": song_fragments.duplicate(),
 			"recipes_known": recipes_known.duplicate(),
 			"tales_earned": tales_earned.duplicate(),
+			"active_class": active_class,
 		},
 		"meta": {
 			"total_playtime": total_playtime,
@@ -526,6 +575,7 @@ static func from_dict(data: Dictionary) -> GameState:
 	var earned_tales: Dictionary = perma.get("tales_earned", {})
 	for id: String in earned_tales:
 		state.tales_earned[id] = true
+	state.active_class = str(perma.get("active_class", ""))
 	var meta: Dictionary = data.get("meta", {})
 	state.total_playtime = float(meta.get("total_playtime", 0.0))
 	state.prestige_count = int(meta.get("prestige_count", 0))
