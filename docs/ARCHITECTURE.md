@@ -154,6 +154,31 @@ mehrere Seeds.
 - Da der Run auf den Spieler wartet, gibt es keinerlei Zeitdruck –
   Idle-Schicht und Run-Schicht koexistieren konfliktfrei.
 
+### In-Run-Segen (Boons): der Build-Layer
+
+Nach jedem erkämpften Raum (außer Boss) wählt der Spieler 1 aus
+`BOON_OFFER_COUNT` zufälligen Segen (`Phase.CHOOSING_BOON`), die nur
+für DIESEN Run gelten – daraus entstehen Builds. `BoonDef`
+(`data/boons.json`) deklariert Effekt + Betrag + `max_stacks`; neun
+Effekte sind verdrahtet: `atk_mult`, `block_bonus` (Deckel 95%),
+`lifesteal`, `heal_on_kill`, `max_hp_mult` (Zugewinn sofort geheilt),
+`strike_cd` (Boden 1), `gold_mult`, `drop_mult`, `thorns` (kann
+töten). Summiert über `boon_amount(effect)`; `effective_atk()` ist der
+einzige Schadensursprung.
+
+- **Reihenfolge pro Raum:** Kill → Segenswahl → Türwahl → nächster
+  Raum. Vor dem Boss entfällt die Türwahl, der Segen kommt aber noch.
+- **Pool injizierbar:** `RunState.start(..., boon_pool)` – die
+  Combat-Tests übergeben `[]` (segenlos), damit ihre Mathematik exakt
+  bleibt; Segen haben ihre eigene Suite (`test_boons.gd`). Das Spiel
+  zieht aus `ContentDB.boons()`. (Untypisierte Pools werden via
+  `Array.assign()` nach `Array[BoonDef]` coerciert – direkte Zuweisung
+  würde zur Laufzeit crashen.)
+- **Auswahl ist seeded** (Fisher-Yates mit dem Run-RNG): gleicher Seed
+  → gleiches Angebot. Segen am Stapellimit fallen aus dem Angebot;
+  ist nichts mehr übrig, geht es ohne Auswahl weiter.
+- Boons sind reiner Run-Zustand – nichts davon wird persistiert.
+
 ### Drops & Beuteverwaltung (v2)
 
 Gegner würfeln beim Tod gegen die Drop-Tabelle des Dungeons

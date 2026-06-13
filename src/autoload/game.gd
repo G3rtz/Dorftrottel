@@ -93,6 +93,18 @@ func choose_room(choice: RunState.RoomType) -> void:
 	_emit_and_check(run.choose(choice))
 
 
+func choose_boon(boon_id: String) -> void:
+	if not is_run_active():
+		return
+	_emit_and_check(run.choose_boon(boon_id))
+
+
+func skip_boon() -> void:
+	if not is_run_active():
+		return
+	_emit_and_check(run.skip_boon())
+
+
 func sell_item(item_id: String, count: int = 1) -> int:
 	return state.sell_item(item_id, count)
 

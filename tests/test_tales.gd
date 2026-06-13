@@ -148,7 +148,7 @@ func test_run_counters_are_tracked() -> void:
 		"boss_hp_mult": 2.0, "boss_atk_mult": 1.0, "heal_per_room": 4.0,
 		"gold_per_enemy": 5.0, "gold_growth": 1.0, "boss_gold": 20.0, "completion_bonus": 30.0,
 	})
-	var run := RunState.start(def, {"hp": BigNum.from_float(30.0), "atk": BigNum.from_float(5.0)})
+	var run := RunState.start(def, {"hp": BigNum.from_float(30.0), "atk": BigNum.from_float(5.0)}, 0, [])
 	var guard := 0
 	while run.status == RunState.Status.ACTIVE and guard < 1000:
 		guard += 1
@@ -173,7 +173,7 @@ func test_integration_one_shot_hero_earns_tales() -> void:
 	var keller := ContentDB.dungeon("ratten_keller")
 	var run := RunState.start(keller, {
 		"hp": BigNum.from_float(10000.0), "atk": BigNum.from_float(100000.0),
-	})
+	}, 0, [])
 	var guard := 0
 	while run.status == RunState.Status.ACTIVE and guard < 1000:
 		guard += 1
@@ -192,14 +192,14 @@ func test_integration_one_shot_hero_earns_tales() -> void:
 
 func test_integration_flee_and_defeat_tales() -> void:
 	var keller := ContentDB.dungeon("ratten_keller")
-	var fleeing := RunState.start(keller, GameState.new().hero_stats())
+	var fleeing := RunState.start(keller, GameState.new().hero_stats(), 0, [])
 	fleeing.flee()
 	var state := GameState.new()
 	assert_true(state.bank_run_result(fleeing.result()).has("der_taktische_rueckzug"))
 
 	var doomed := RunState.start(keller, {
 		"hp": BigNum.from_float(1.0), "atk": BigNum.from_float(1.0),
-	})
+	}, 0, [])
 	var guard := 0
 	while doomed.status == RunState.Status.ACTIVE and guard < 1000:
 		guard += 1

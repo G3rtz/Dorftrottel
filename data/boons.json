@@ -1,0 +1,74 @@
+[
+  {
+    "id": "zorn_des_trottels",
+    "display_name": "Zorn des Trottels",
+    "flavor": "Wut hilft. Wer hätte das gedacht.",
+    "effect": "atk_mult",
+    "amount": 0.25,
+    "max_stacks": 0
+  },
+  {
+    "id": "eichenschild",
+    "display_name": "Eichenschild",
+    "flavor": "Riecht nach Wald, hält wie ein Tor.",
+    "effect": "block_bonus",
+    "amount": 0.1,
+    "max_stacks": 2
+  },
+  {
+    "id": "kampfrausch",
+    "display_name": "Kampfrausch",
+    "flavor": "Jeder Treffer schmeckt nach mehr.",
+    "effect": "lifesteal",
+    "amount": 0.15,
+    "max_stacks": 3
+  },
+  {
+    "id": "siegesschmaus",
+    "display_name": "Siegesschmaus",
+    "flavor": "Nach jedem Sieg ein Happen. Heldendiät.",
+    "effect": "heal_on_kill",
+    "amount": 0.15,
+    "max_stacks": 3
+  },
+  {
+    "id": "dicke_haut",
+    "display_name": "Dicke Haut",
+    "flavor": "Beleidigungen prallten schon immer ab. Jetzt auch Schläge.",
+    "effect": "max_hp_mult",
+    "amount": 0.3,
+    "max_stacks": 0
+  },
+  {
+    "id": "schwungvoll",
+    "display_name": "Schwungvoll",
+    "flavor": "Weniger Nachdenken, mehr Nachschlagen.",
+    "effect": "strike_cd",
+    "amount": 1,
+    "max_stacks": 2
+  },
+  {
+    "id": "spuernase_fuer_muenzen",
+    "display_name": "Spürnase für Münzen",
+    "flavor": "Es klimpert. Da lang!",
+    "effect": "gold_mult",
+    "amount": 0.3,
+    "max_stacks": 0
+  },
+  {
+    "id": "pluenderer",
+    "display_name": "Plünderer",
+    "flavor": "Taschen wie ein Krämer, Finger wie ein Dieb.",
+    "effect": "drop_mult",
+    "amount": 0.5,
+    "max_stacks": 2
+  },
+  {
+    "id": "stachelweste",
+    "display_name": "Stachelweste",
+    "flavor": "Umarmen auf eigene Gefahr.",
+    "effect": "thorns",
+    "amount": 0.5,
+    "max_stacks": 2
+  }
+]

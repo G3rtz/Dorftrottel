@@ -100,7 +100,8 @@ func _simulate(def: DungeonDef, hp_level: int, atk_level: int, rng_seed: int) ->
 	var state := GameState.new()
 	state.hero_hp_level = hp_level
 	state.hero_atk_level = atk_level
-	var run := RunState.start(def, state.hero_stats(), rng_seed)
+	# Ohne Segen: strenge untere Schranke (Segen können nur helfen).
+	var run := RunState.start(def, state.hero_stats(), rng_seed, [])
 	var half_hp := run.hero_max_hp.mul(BigNum.from_float(0.5))
 	var guard := 100000
 	while run.status == RunState.Status.ACTIVE and guard > 0:

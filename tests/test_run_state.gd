@@ -31,6 +31,12 @@ func _stats(hp: float, atk: float) -> Dictionary:
 	return {"hp": BigNum.from_float(hp), "atk": BigNum.from_float(atk)}
 
 
+## Startet einen Run OHNE Segen – hält die Kampfmathematik exakt.
+## Segen haben ihre eigene Test-Suite (test_boons.gd).
+func _start(def: DungeonDef, stats: Dictionary, rng_seed: int = 0) -> RunState:
+	return RunState.start(def, stats, rng_seed, [])
+
+
 ## Angriff, bis der Gegner vom normalen Schlag stirbt – Absicht wird
 ## vor jedem Zug auf NORMAL gezwungen (deterministische Mathematik).
 func _attack_normal(run: RunState) -> void:
@@ -55,7 +61,7 @@ func _run_to_end_normal(run: RunState) -> int:
 func test_one_shot_clear_takes_no_damage() -> void:
 	# ATK >= Gegner-HP (auch Boss: 10 * 2 = 20): jeder Gegner stirbt am
 	# ersten Schlag und kommt nie zum Zug.
-	var run := RunState.start(_tiny_dungeon(), _stats(50.0, 20.0))
+	var run := _start(_tiny_dungeon(), _stats(50.0, 20.0))
 	var turns := _run_to_end_normal(run)
 	assert_eq(run.status, RunState.Status.VICTORY)
 	assert_eq(turns, 3, "ein Zug pro Gegner")
@@ -68,7 +74,7 @@ func test_exact_combat_math() -> void:
 	# ATK 5 gegen HP 10: 2 Züge pro Gegner, je 1 Gegentreffer à 3.
 	# Raum 1: -3, dann +4 Heilung (Cap 30). Raum 2: -3, +4.
 	# Boss (HP 20): 4 Züge, 3 Gegentreffer à 3 = -9.
-	var run := RunState.start(_tiny_dungeon(), _stats(30.0, 5.0))
+	var run := _start(_tiny_dungeon(), _stats(30.0, 5.0))
 	var turns := _run_to_end_normal(run)
 	assert_eq(run.status, RunState.Status.VICTORY)
 	assert_eq(turns, 2 + 2 + 4)
@@ -77,7 +83,7 @@ func test_exact_combat_math() -> void:
 
 
 func test_heavy_intent_and_block() -> void:
-	var run := RunState.start(_tiny_dungeon(), _stats(30.0, 5.0))
+	var run := _start(_tiny_dungeon(), _stats(30.0, 5.0))
 	# Schwerer Schlag angekündigt: Blocken lässt nur 30% durch.
 	run.enemy_intent = RunState.Intent.HEAVY
 	var enemy_hp_before := run.enemy_hp.to_float()
@@ -97,7 +103,7 @@ func test_heavy_intent_and_block() -> void:
 func test_lethal_hit_prevents_retaliation() -> void:
 	# Gegner auf 5 LP bringen, schwerer Schlag steht an – aber der
 	# Todesstoß verhindert ihn.
-	var run := RunState.start(_tiny_dungeon(), _stats(30.0, 5.0))
+	var run := _start(_tiny_dungeon(), _stats(30.0, 5.0))
 	_attack_normal(run)  # Gegner: 10 -> 5, Gegentreffer -3
 	run.enemy_intent = RunState.Intent.HEAVY
 	run.take_action(RunState.Action.ATTACK)  # tötet: kein Gegenschlag
@@ -108,7 +114,7 @@ func test_lethal_hit_prevents_retaliation() -> void:
 func test_strike_cooldown_in_turns() -> void:
 	var def := _tiny_dungeon()
 	def.enemy_hp = 1000.0
-	var run := RunState.start(def, _stats(100.0, 5.0))
+	var run := _start(def, _stats(100.0, 5.0))
 	run.enemy_intent = RunState.Intent.NORMAL
 	var events := run.take_action(RunState.Action.STRIKE)
 	var types: Array = events.map(func(ev: Dictionary) -> String: return ev["type"])
@@ -125,7 +131,7 @@ func test_strike_cooldown_in_turns() -> void:
 func test_breather_heals_but_exposes() -> void:
 	var def := _tiny_dungeon()
 	def.enemy_hp = 1000.0
-	var run := RunState.start(def, _stats(100.0, 5.0))
+	var run := _start(def, _stats(100.0, 5.0))
 	for i in 3:
 		_attack_normal(run)
 	assert_almost(run.hero_hp.to_float(), 91.0, 1e-6)
@@ -138,7 +144,7 @@ func test_breather_heals_but_exposes() -> void:
 
 
 func test_rest_room() -> void:
-	var run := RunState.start(_tiny_dungeon(), _stats(30.0, 5.0))
+	var run := _start(_tiny_dungeon(), _stats(30.0, 5.0))
 	_attack_normal(run)
 	_attack_normal(run)
 	assert_eq(run.phase, RunState.Phase.CHOOSING)
@@ -157,7 +163,7 @@ func test_rest_room() -> void:
 
 
 func test_elite_room() -> void:
-	var run := RunState.start(_tiny_dungeon(), _stats(50.0, 20.0))
+	var run := _start(_tiny_dungeon(), _stats(50.0, 20.0))
 	_attack_normal(run)  # Raum 1 fällt, Gabelung
 	run.choose(RunState.RoomType.ELITE)
 	assert_almost(run.enemy_max_hp.to_float(), 10.0 * Balance.ELITE_HP_MULT, 1e-6)
@@ -173,7 +179,7 @@ func test_elite_room() -> void:
 func test_defeat_keeps_loot_and_clamps_hp() -> void:
 	var def := _tiny_dungeon()
 	def.enemy_atk = 999.0
-	var run := RunState.start(def, _stats(10.0, 5.0))
+	var run := _start(def, _stats(10.0, 5.0))
 	run.enemy_intent = RunState.Intent.NORMAL
 	run.take_action(RunState.Action.ATTACK)
 	run.enemy_intent = RunState.Intent.NORMAL
@@ -184,7 +190,7 @@ func test_defeat_keeps_loot_and_clamps_hp() -> void:
 
 
 func test_flee_and_finished_runs_are_inert() -> void:
-	var run := RunState.start(_tiny_dungeon(), _stats(30.0, 5.0))
+	var run := _start(_tiny_dungeon(), _stats(30.0, 5.0))
 	_attack_normal(run)
 	run.flee()
 	assert_eq(run.status, RunState.Status.FLED)
@@ -195,7 +201,7 @@ func test_flee_and_finished_runs_are_inert() -> void:
 
 
 func test_actions_blocked_during_choice() -> void:
-	var run := RunState.start(_tiny_dungeon(), _stats(50.0, 20.0))
+	var run := _start(_tiny_dungeon(), _stats(50.0, 20.0))
 	_attack_normal(run)
 	assert_eq(run.phase, RunState.Phase.CHOOSING)
 	assert_true(run.take_action(RunState.Action.ATTACK).is_empty(), "an der Gabelung wird nicht gekämpft")
@@ -205,7 +211,7 @@ func test_drops_and_banking() -> void:
 	var def := _tiny_dungeon()
 	def.drops = [{"item_id": "test_zahn", "chance": 1.0}]
 	def.boss_drops = [{"item_id": "test_krone", "chance": 1.0}]
-	var run := RunState.start(def, _stats(50.0, 20.0))
+	var run := _start(def, _stats(50.0, 20.0))
 	_run_to_end_normal(run)
 	assert_eq(run.status, RunState.Status.VICTORY)
 	assert_eq(int(run.items_found.get("test_zahn", 0)), 2, "jeder Raumgegner droppt bei Chance 1.0")
@@ -217,7 +223,7 @@ func test_elite_drop_bonus_caps_at_certainty() -> void:
 	# 0.4 Chance × 3 (Schatzkammer) = 1.2 -> gedeckelt auf sicher.
 	var def := _tiny_dungeon()
 	def.drops = [{"item_id": "test_zahn", "chance": 0.4}]
-	var run := RunState.start(def, _stats(50.0, 20.0))
+	var run := _start(def, _stats(50.0, 20.0))
 	_attack_normal(run)
 	run.choose(RunState.RoomType.ELITE)
 	var before := int(run.items_found.get("test_zahn", 0))
@@ -229,9 +235,9 @@ func test_elite_drop_bonus_caps_at_certainty() -> void:
 func test_runs_are_seeded_and_reproducible() -> void:
 	var def := _tiny_dungeon()
 	def.drops = [{"item_id": "test_zahn", "chance": 0.5}]
-	var first := RunState.start(def, _stats(50.0, 20.0), 1337)
+	var first := _start(def, _stats(50.0, 20.0), 1337)
 	_run_to_end_normal(first)
-	var second := RunState.start(def, _stats(50.0, 20.0), 1337)
+	var second := _start(def, _stats(50.0, 20.0), 1337)
 	_run_to_end_normal(second)
 	assert_eq(first.items_found, second.items_found, "gleicher Seed, gleiche Züge, gleiche Drops")
 	assert_almost(first.hero_hp.to_float(), second.hero_hp.to_float(), 1e-9)

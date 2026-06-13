@@ -11,6 +11,7 @@ const SAGA_LINES_PATH := "res://data/saga_lines.json"
 const ITEMS_PATH := "res://data/items.json"
 const RECIPES_PATH := "res://data/recipes.json"
 const TALES_PATH := "res://data/tales.json"
+const BOONS_PATH := "res://data/boons.json"
 const GENERATOR_UPGRADES_PATH := "res://data/generator_upgrades.json"
 
 ## Hohe Ausbau-Staffeln in althergebrachter Idle-Manier: werden für
@@ -44,6 +45,8 @@ static var _recipes: Array[RecipeDef] = []
 static var _recipes_loaded := false
 static var _tales: Array[TaleDef] = []
 static var _tales_loaded := false
+static var _boons: Array[BoonDef] = []
+static var _boons_loaded := false
 static var _generator_upgrades: Array[GeneratorUpgradeDef] = []
 static var _generator_upgrades_loaded := false
 
@@ -152,6 +155,20 @@ static func tales() -> Array[TaleDef]:
 
 static func tale(id: String) -> TaleDef:
 	for def in tales():
+		if def.id == id:
+			return def
+	return null
+
+
+static func boons() -> Array[BoonDef]:
+	if not _boons_loaded:
+		_boons = _load_boons(BOONS_PATH)
+		_boons_loaded = true
+	return _boons
+
+
+static func boon(id: String) -> BoonDef:
+	for def in boons():
 		if def.id == id:
 			return def
 	return null
@@ -319,6 +336,34 @@ static func _load_recipes(path: String) -> Array[RecipeDef]:
 	for item_def in items():
 		if item_def.is_recipe() and not seen_ids.has(item_def.id):
 			push_error("ContentDB: Rezept-Item '%s' lehrt ein unbekanntes Rezept" % item_def.id)
+	return result
+
+
+static func _load_boons(path: String) -> Array[BoonDef]:
+	var result: Array[BoonDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := BoonDef.from_dict(entry)
+		var problems := def.validate()
+		if not problems.is_empty():
+			push_error("ContentDB: Segen '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Segen-ID '%s'" % def.id)
+			continue
+		seen_ids[def.id] = true
+		result.append(def)
 	return result
 
 

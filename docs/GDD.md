@@ -124,6 +124,7 @@ Klassen sind teuer (eigene Talente, Ausrüstungslogik, Balancing – multiplizie
 - [x] Kernressourcen konkret benennen → *Gold (Dorf-Währung) · Trophäen (Material/Verkauf) · Liedfragmente (Prestige, halten = passiv, ausgeben = Perma-Baum) · Tavernenerzählungen (Klassen, geplant)*
 - [x] Dungeon „Vergessene Äcker" (Müllerin-Anbindung) → *drittes Kettenglied: Krähen, Vogelscheuchen, der Strohkönig; Kette: Keller → Wald → Äcker → Eis*
 - [x] Kampf rundenbasiert & manuell → *Angriff/Zuschlagen/Blocken/Verschnaufen, Gegner telegrafieren schwere Schläge*
+- [x] In-Run-Builds: Segen (Boons) → *1 aus 3 nach jedem Raum, 9 Effekte in data/boons.json, nur für den Run; daraus echte Builds*
 - [x] Tavernenerzählungen: Taten-Tracking im Run → *9 Erzählungen in data/tales.json, einmalig & perma; auch Flucht und Niederlage geben Geschichten*
 - [ ] Klassen implementieren (Freischaltung über Tavernenerzählungen)
 - [x] Ersten Dungeon-Loop skizzieren → *v1 gebaut: Räume + Boss, Tod = Run endet & Beute bleibt, Sieg schaltet dauerhaft frei (Details in ARCHITECTURE.md)*

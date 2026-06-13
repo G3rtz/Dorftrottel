@@ -41,6 +41,9 @@ const BLOCK_REDUCTION := 0.7
 const HEAVY_INTENT_CHANCE := 0.25
 const HEAVY_INTENT_MULT := 2.0
 
+## Segen (Boons): Auswahlgröße nach jedem erkämpften Raum.
+const BOON_OFFER_COUNT := 3
+
 ## Raumwahl: Schatzkammer = härterer Wächter gegen mehr Beute,
 ## Rastplatz = Heilung statt Beute.
 const ELITE_HP_MULT := 1.6

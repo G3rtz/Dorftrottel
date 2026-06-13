@@ -33,6 +33,10 @@ var _block_button: Button
 var _breather_button: Button
 var _intent_label: Label
 var _door_row: HBoxContainer
+var _boon_label: Label
+var _boon_row: VBoxContainer
+var _boon_buttons: Array[Button] = []
+var _build_label: Label
 var _bag_label: Label
 var _log_lines: Array[String] = []
 
@@ -301,6 +305,31 @@ func _build_ui() -> void:
 	_door_row.add_child(door_rest)
 	_run_panel.add_child(_door_row)
 
+	# Segenswahl nach jedem erkämpften Raum – hier entsteht der Build.
+	_boon_label = Label.new()
+	_boon_label.visible = false
+	_run_panel.add_child(_boon_label)
+	_boon_row = VBoxContainer.new()
+	_boon_row.add_theme_constant_override("separation", 6)
+	_boon_row.visible = false
+	for i in Balance.BOON_OFFER_COUNT:
+		var boon_button := Button.new()
+		boon_button.custom_minimum_size = Vector2(420, 0)
+		boon_button.pressed.connect(_on_boon_pressed.bind(i))
+		_boon_row.add_child(boon_button)
+		_boon_buttons.append(boon_button)
+	var skip_button := Button.new()
+	skip_button.text = "Keinen Segen (überspringen)"
+	skip_button.pressed.connect(func() -> void: Game.skip_boon())
+	_boon_row.add_child(skip_button)
+	_run_panel.add_child(_boon_row)
+
+	# Aktueller Build: die gesammelten Segen dieses Runs.
+	_build_label = Label.new()
+	_build_label.modulate = Color(0.7, 0.9, 1.0)
+	_build_label.visible = false
+	_run_panel.add_child(_build_label)
+
 	_bag_label = Label.new()
 	_bag_label.modulate = Color(1, 1, 1, 0.7)
 	_run_panel.add_child(_bag_label)
@@ -535,6 +564,7 @@ func _refresh() -> void:
 			button.disabled = Game.state.fragments.lt(cost)
 
 	var fighting := run_active and Game.run.phase == RunState.Phase.FIGHTING
+	var choosing_boon := run_active and Game.run.phase == RunState.Phase.CHOOSING_BOON
 	_flee_button.visible = run_active
 	_attack_button.visible = fighting
 	_strike_button.visible = fighting
@@ -542,9 +572,27 @@ func _refresh() -> void:
 	_breather_button.visible = fighting
 	_intent_label.visible = fighting
 	_door_row.visible = run_active and Game.run.phase == RunState.Phase.CHOOSING
+	_boon_label.visible = choosing_boon
+	_boon_row.visible = choosing_boon
+	if choosing_boon:
+		_boon_label.text = "Wähle einen Segen für diesen Run:"
+		var offers := Game.run.boon_offers
+		for i in _boon_buttons.size():
+			var boon_button := _boon_buttons[i]
+			boon_button.visible = i < offers.size()
+			if i < offers.size():
+				var boon_def := ContentDB.boon(offers[i])
+				if boon_def != null:
+					boon_button.text = "%s – %s" % [boon_def.display_name, boon_def.description()]
 	if run_active:
 		var run := Game.run
-		if run.phase == RunState.Phase.CHOOSING:
+		if choosing_boon:
+			_run_status_label.text = "%s – Sieg! Wähle deinen Segen. | Held: %s/%s LP | Beute: %s Gold" % [
+				run.dungeon.display_name,
+				run.hero_hp.format(), run.hero_max_hp.format(),
+				run.gold_earned.format(),
+			]
+		elif run.phase == RunState.Phase.CHOOSING:
 			_run_status_label.text = "%s – der Gang gabelt sich. | Held: %s/%s LP | Beute: %s Gold" % [
 				run.dungeon.display_name,
 				run.hero_hp.format(), run.hero_max_hp.format(),
@@ -578,6 +626,17 @@ func _refresh() -> void:
 			else:
 				_breather_button.text = "Verschnaufen (noch %d Züge)" % run.breather_cooldown
 			_breather_button.disabled = not run.can_act(RunState.Action.BREATHER)
+		var build_parts: Array[String] = []
+		for boon_id: String in run.boons_owned:
+			var boon_def := ContentDB.boon(boon_id)
+			if boon_def != null:
+				var stacks := int(run.boons_owned[boon_id])
+				var suffix := " ×%d" % stacks if stacks > 1 else ""
+				build_parts.append("%s%s" % [boon_def.display_name, suffix])
+		_build_label.visible = not build_parts.is_empty()
+		if _build_label.visible:
+			_build_label.text = "Segen: " + " · ".join(build_parts)
+
 		var bag_parts: Array[String] = []
 		for item_id: String in run.items_found:
 			var item_def := ContentDB.item(item_id)
@@ -627,6 +686,14 @@ func _on_run_tick(events: Array) -> void:
 					_append_log("Die Schatzkammer! %s bewacht sie." % event["enemy"])
 				else:
 					_append_log("Raum %d: %s stellt sich dir." % [event["room"], event["enemy"]])
+			"boons_offered":
+				_append_log("Ein Segen liegt in der Luft – wähle weise.")
+			"boon_taken":
+				var boon_def := ContentDB.boon(str(event.get("boon_id", "")))
+				if boon_def != null:
+					_append_log("Segen erhalten: %s (%s)." % [boon_def.display_name, boon_def.description()])
+			"thorns":
+				_append_log("Dornen! %s nimmt %s Schaden." % [event["enemy"], event["damage"].format()])
 			"doors_offered":
 				_append_log("Der Gang gabelt sich. Wohin?")
 			"rested":
@@ -650,6 +717,14 @@ func _on_run_tick(events: Array) -> void:
 				_append_log("Du gehst zu Boden. Die Beute nimmst du trotzdem mit.")
 			"run_complete":
 				_append_log("Dungeon geschafft! Gesamtbeute: %s Gold" % event["gold_total"].format())
+
+
+func _on_boon_pressed(index: int) -> void:
+	if not Game.is_run_active():
+		return
+	var offers := Game.run.boon_offers
+	if index < offers.size():
+		Game.choose_boon(offers[index])
 
 
 func _on_sell_pressed(item_id: String, count: int) -> void:
