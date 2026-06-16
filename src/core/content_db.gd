@@ -14,6 +14,15 @@ const TALES_PATH := "res://data/tales.json"
 const BOONS_PATH := "res://data/boons.json"
 const CLASSES_PATH := "res://data/classes.json"
 const GENERATOR_UPGRADES_PATH := "res://data/generator_upgrades.json"
+const HERO_TALENTS_PATH := "res://data/hero_talents.json"
+const BASE_TALENTS_PATH := "res://data/base_talents.json"
+
+## Welche Effekte je Talentbaum erlaubt sind – docken an die zwei dafür
+## vorgesehenen Stellen an (siehe ARCHITECTURE.md "Bewusst noch nicht
+## gebaut"): Hero an hero_stats(), Base an production_per_second() /
+## manual_work_amount().
+const HERO_TALENT_EFFECTS: Array[String] = ["hero_hp_mult", "hero_atk_mult"]
+const BASE_TALENT_EFFECTS: Array[String] = ["gold_mult", "work_mult"]
 
 ## Hohe Ausbau-Staffeln in althergebrachter Idle-Manier: werden für
 ## jeden Generator GENERIERT statt von Hand gepflegt. Die tiefen
@@ -52,6 +61,10 @@ static var _classes: Array[ClassDef] = []
 static var _classes_loaded := false
 static var _generator_upgrades: Array[GeneratorUpgradeDef] = []
 static var _generator_upgrades_loaded := false
+static var _hero_talents: Array[TalentDef] = []
+static var _hero_talents_loaded := false
+static var _base_talents: Array[TalentDef] = []
+static var _base_talents_loaded := false
 
 
 static func generators() -> Array[GeneratorDef]:
@@ -130,6 +143,34 @@ static func _generate_upgrade_tiers() -> Array[GeneratorUpgradeDef]:
 
 static func generator_upgrade(id: String) -> GeneratorUpgradeDef:
 	for def in generator_upgrades():
+		if def.id == id:
+			return def
+	return null
+
+
+static func hero_talents() -> Array[TalentDef]:
+	if not _hero_talents_loaded:
+		_hero_talents = _load_talents(HERO_TALENTS_PATH, HERO_TALENT_EFFECTS)
+		_hero_talents_loaded = true
+	return _hero_talents
+
+
+static func hero_talent(id: String) -> TalentDef:
+	for def in hero_talents():
+		if def.id == id:
+			return def
+	return null
+
+
+static func base_talents() -> Array[TalentDef]:
+	if not _base_talents_loaded:
+		_base_talents = _load_talents(BASE_TALENTS_PATH, BASE_TALENT_EFFECTS)
+		_base_talents_loaded = true
+	return _base_talents
+
+
+static func base_talent(id: String) -> TalentDef:
+	for def in base_talents():
 		if def.id == id:
 			return def
 	return null
@@ -310,6 +351,41 @@ static func _load_generator_upgrades(path: String) -> Array[GeneratorUpgradeDef]
 			continue
 		seen_ids[def.id] = true
 		result.append(def)
+	return result
+
+
+## Gemeinsamer Loader für Hero- und Base-Baum: identische Form, nur das
+## erlaubte Effekt-Set unterscheidet sich je Baum.
+static func _load_talents(path: String, allowed_effects: Array[String]) -> Array[TalentDef]:
+	var result: Array[TalentDef] = []
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		push_error("ContentDB: %s fehlt oder ist leer" % path)
+		return result
+	var parsed: Variant = JSON.parse_string(text)
+	if parsed == null or not parsed is Array:
+		push_error("ContentDB: %s ist kein gültiges JSON-Array" % path)
+		return result
+	var seen_ids := {}
+	for entry: Variant in parsed:
+		if not entry is Dictionary:
+			push_error("ContentDB: Eintrag in %s ist kein Objekt: %s" % [path, entry])
+			continue
+		var def := TalentDef.from_dict(entry)
+		var problems := def.validate(allowed_effects)
+		if not problems.is_empty():
+			push_error("ContentDB: Talent '%s' ungültig: %s" % [def.id, ", ".join(problems)])
+			continue
+		if seen_ids.has(def.id):
+			push_error("ContentDB: doppelte Talent-ID '%s'" % def.id)
+			continue
+		seen_ids[def.id] = true
+		result.append(def)
+	# Querverweis: "requires" muss auf einen existierenden Knoten im
+	# selben Baum zeigen, sonst wäre der Folgeknoten nie freischaltbar.
+	for def in result:
+		if not def.requires.is_empty() and not seen_ids.has(def.requires):
+			push_error("ContentDB: Talent '%s' verlangt unbekannten Vorgänger '%s'" % [def.id, def.requires])
 	return result
 
 

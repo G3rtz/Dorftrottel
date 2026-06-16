@@ -160,6 +160,20 @@ func buy_perma(upgrade_id: String) -> bool:
 	return bought
 
 
+func buy_hero_talent(talent_id: String) -> bool:
+	var bought := state.buy_hero_talent(talent_id)
+	if bought:
+		save_now()
+	return bought
+
+
+func buy_base_talent(talent_id: String) -> bool:
+	var bought := state.buy_base_talent(talent_id)
+	if bought:
+		save_now()
+	return bought
+
+
 func _finish_run() -> void:
 	var run_result := run.result()
 	# Klassen-Freischaltung ist aus den Erzählungen abgeleitet: Stand

@@ -74,3 +74,19 @@ const FRAGMENT_BASE_GOLD := 50000.0
 ## wachsende Baumkosten balanciert sich selbst.
 const FRAGMENT_GOLD_BONUS := 0.02
 const FRAGMENT_ATK_BONUS := 0.01
+
+## Talentbäume (GDD §3): Hero (Dungeon-Erfahrung) und Base/Dorf
+## (Idle-Fortschritt). Beide resetten beim Prestige (hero- bzw.
+## village-Sektion) – anders als der Perma-Baum, der überlebt.
+## Hero-XP: jeder erkämpfte Raum zählt, ein Sieg gibt Bonus obendrauf.
+const HERO_XP_PER_ROOM := 1
+const HERO_XP_VICTORY_BONUS := 3
+const HERO_XP_PER_POINT := 4
+## Base-Talentpunkte kommen aus dem Lifetime-Gold der laufenden Sage –
+## wie bei Liedfragmenten (sqrt-Formel), aber mit niedrigerer Schwelle,
+## damit der kleine Baum schon vor dem ersten Prestige etwas zu tun gibt.
+const BASE_TALENT_POINT_GOLD := 200.0
+## Obergrenze für die gebundene Suche in GameState.base_talent_points_earned():
+## weit über der Summe aller Knotenkosten, verhindert aber, dass absurd
+## hohes Lifetime-Gold BigNum zwingt, sich in einen Float zu verwandeln.
+const BASE_TALENT_POINT_SEARCH_CAP := 64

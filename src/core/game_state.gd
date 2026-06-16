@@ -13,11 +13,18 @@ var lifetime_earned := {}  # resource_id -> BigNum (insgesamt je verdient; treib
 var generators := {}       # generator_id -> int (Anzahl besessen)
 var generator_upgrades := {}  # upgrade_id -> true (Dorf-Ausbauten; weg beim Prestige)
 var inventory := {}        # item_id -> int (Trophäen; vergänglich, weg beim Prestige)
+## Base-Talentbaum (GDD §3): gefüttert durch Idle-Fortschritt (Lifetime-
+## Gold der laufenden Sage). base_talent_levels: talent_id -> Stufe.
+var base_talent_levels := {}
 
 # hero-Sektion: resettet beim Prestige.
 var hero_hp_level := 0
 var hero_atk_level := 0
 var equipment := {}  # slot -> recipe_id (geschmiedete Ausrüstung; vergänglich)
+## Hero-Talentbaum (GDD §3): gefüttert durch Dungeon-Erfahrung, siehe
+## bank_run_result(). hero_talent_levels: talent_id -> Stufe.
+var hero_xp := 0
+var hero_talent_levels := {}
 
 # perma-Sektion: überlebt das Prestige ("alles im Hirn bleibt").
 var dungeons_cleared := {}  # dungeon_id -> true
@@ -79,7 +86,7 @@ func production_per_second(resource_id: String) -> BigNum:
 			rate = rate.mul(BigNum.from_float(generator_multiplier(def.id)))
 			total = total.add(rate)
 	if resource_id == Balance.PRIMARY_RESOURCE:
-		total = total.mul(BigNum.from_float(1.0 + perma_bonus("gold_mult")))
+		total = total.mul(BigNum.from_float(1.0 + perma_bonus("gold_mult") + base_talent_bonus("gold_mult")))
 		total = total.mul(fragment_gold_multiplier())
 	return total
 
@@ -93,7 +100,7 @@ func manual_work_amount() -> BigNum:
 	var share := production_per_second(Balance.PRIMARY_RESOURCE) \
 		.mul(BigNum.from_float(Balance.WORK_PRODUCTION_SHARE))
 	amount = amount.add(share)
-	return amount.mul(BigNum.from_float(1.0 + perma_bonus("work_mult")))
+	return amount.mul(BigNum.from_float(1.0 + perma_bonus("work_mult") + base_talent_bonus("work_mult")))
 
 
 func do_manual_work() -> BigNum:
@@ -206,9 +213,13 @@ func hero_stats() -> Dictionary:
 	var cls := active_class_def()
 	var cls_hp_mult := cls.hp_mult if cls != null else 1.0
 	var cls_atk_mult := cls.atk_mult if cls != null else 1.0
-	var atk_total := BigNum.from_float(atk * (1.0 + perma_bonus("hero_atk_mult")) * cls_atk_mult)
+	var atk_total := BigNum.from_float(
+		atk * (1.0 + perma_bonus("hero_atk_mult") + hero_talent_bonus("hero_atk_mult")) * cls_atk_mult
+	)
 	return {
-		"hp": BigNum.from_float(hp * (1.0 + perma_bonus("hero_hp_mult")) * cls_hp_mult),
+		"hp": BigNum.from_float(
+			hp * (1.0 + perma_bonus("hero_hp_mult") + hero_talent_bonus("hero_hp_mult")) * cls_hp_mult
+		),
 		"atk": atk_total.mul(fragment_atk_multiplier()),
 	}
 
@@ -277,6 +288,108 @@ func train(kind: String) -> bool:
 	return true
 
 
+func hero_talent_level(talent_id: String) -> int:
+	return int(hero_talent_levels.get(talent_id, 0))
+
+
+func hero_talent_points_earned() -> int:
+	return hero_xp / Balance.HERO_XP_PER_POINT
+
+
+func hero_talent_points_spent() -> int:
+	var total := 0
+	for talent_id: String in hero_talent_levels:
+		total += int(hero_talent_levels[talent_id])
+	return total
+
+
+func hero_talent_points_available() -> int:
+	return maxi(0, hero_talent_points_earned() - hero_talent_points_spent())
+
+
+func is_hero_talent_available(def: TalentDef) -> bool:
+	var level := hero_talent_level(def.id)
+	if level >= def.max_level:
+		return false
+	if not def.requires.is_empty() and hero_talent_level(def.requires) <= 0:
+		return false
+	return hero_talent_points_available() >= def.cost_for(level)
+
+
+func buy_hero_talent(talent_id: String) -> bool:
+	var def := ContentDB.hero_talent(talent_id)
+	if def == null or not is_hero_talent_available(def):
+		return false
+	hero_talent_levels[talent_id] = hero_talent_level(talent_id) + 1
+	return true
+
+
+## Summierter Effektwert aller Hero-Talente eines Typs, analog perma_bonus().
+func hero_talent_bonus(effect: String) -> float:
+	var total := 0.0
+	for def in ContentDB.hero_talents():
+		if def.effect == effect:
+			total += def.amount_per_level * float(hero_talent_level(def.id))
+	return total
+
+
+func base_talent_level(talent_id: String) -> int:
+	return int(base_talent_levels.get(talent_id, 0))
+
+
+## Punkte kommen aus dem Lifetime-Gold der laufenden Sage – wie bei
+## pending_fragments() dieselbe sqrt-Idee, aber als gebundene Suche über
+## BigNum-Vergleiche statt sqrt()+to_float(): Talentpunkte sind Spiellogik,
+## und to_float() ist laut BigNum-Konvention dafür nicht erlaubt, egal wie
+## groß das Lifetime-Gold in einer sehr langen Sage werden könnte.
+func base_talent_points_earned() -> int:
+	var lifetime := get_lifetime(Balance.PRIMARY_RESOURCE)
+	var points := 0
+	while points < Balance.BASE_TALENT_POINT_SEARCH_CAP:
+		var next_cost := BigNum.from_float(Balance.BASE_TALENT_POINT_GOLD * float((points + 1) * (points + 1)))
+		if lifetime.lt(next_cost):
+			break
+		points += 1
+	return points
+
+
+func base_talent_points_spent() -> int:
+	var total := 0
+	for talent_id: String in base_talent_levels:
+		total += int(base_talent_levels[talent_id])
+	return total
+
+
+func base_talent_points_available() -> int:
+	return maxi(0, base_talent_points_earned() - base_talent_points_spent())
+
+
+func is_base_talent_available(def: TalentDef) -> bool:
+	var level := base_talent_level(def.id)
+	if level >= def.max_level:
+		return false
+	if not def.requires.is_empty() and base_talent_level(def.requires) <= 0:
+		return false
+	return base_talent_points_available() >= def.cost_for(level)
+
+
+func buy_base_talent(talent_id: String) -> bool:
+	var def := ContentDB.base_talent(talent_id)
+	if def == null or not is_base_talent_available(def):
+		return false
+	base_talent_levels[talent_id] = base_talent_level(talent_id) + 1
+	return true
+
+
+## Summierter Effektwert aller Base-Talente eines Typs, analog perma_bonus().
+func base_talent_bonus(effect: String) -> float:
+	var total := 0.0
+	for def in ContentDB.base_talents():
+		if def.effect == effect:
+			total += def.amount_per_level * float(base_talent_level(def.id))
+	return total
+
+
 func is_recipe_known(recipe_id: String) -> bool:
 	var def := ContentDB.recipe(recipe_id)
 	if def == null:
@@ -336,7 +449,12 @@ func bank_run_result(result: Dictionary) -> Array[String]:
 	var items: Dictionary = result.get("items", {})
 	for item_id: String in items:
 		add_item(item_id, int(items[item_id]))
-	if result.get("victory", false):
+	var victory: bool = result.get("victory", false)
+	# Dungeon-Erfahrung füttert den Hero-Talentbaum: jeder erkämpfte Raum
+	# zählt (auch bei Flucht/Niederlage), ein Sieg gibt Bonus obendrauf.
+	hero_xp += int(result.get("rooms_cleared", 0)) * Balance.HERO_XP_PER_ROOM
+	if victory:
+		hero_xp += Balance.HERO_XP_VICTORY_BONUS
 		dungeons_cleared[str(result.get("dungeon_id", ""))] = true
 		runs_completed += 1
 	return _evaluate_tales(result)
@@ -470,9 +588,12 @@ func prestige() -> Dictionary:
 	generators = {}
 	generator_upgrades = {}
 	inventory = {}
+	base_talent_levels = {}
 	hero_hp_level = 0
 	hero_atk_level = 0
 	equipment = {}
+	hero_xp = 0
+	hero_talent_levels = {}
 	# Startboni der neuen Sage ("beschleunigen, nie skippen").
 	var start_gold := perma_bonus("start_gold")
 	if start_gold > 0.0:
@@ -510,11 +631,14 @@ func to_dict() -> Dictionary:
 			"generators": generators.duplicate(),
 			"generator_upgrades": generator_upgrades.duplicate(),
 			"inventory": inventory.duplicate(),
+			"base_talent_levels": base_talent_levels.duplicate(),
 		},
 		"hero": {
 			"hp_level": hero_hp_level,
 			"atk_level": hero_atk_level,
 			"equipment": equipment.duplicate(),
+			"xp": hero_xp,
+			"talent_levels": hero_talent_levels.duplicate(),
 		},
 		"perma": {
 			"dungeons_cleared": dungeons_cleared.duplicate(),
@@ -551,12 +675,19 @@ static func from_dict(data: Dictionary) -> GameState:
 	var serialized_inventory: Dictionary = village.get("inventory", {})
 	for id: String in serialized_inventory:
 		state.inventory[id] = int(serialized_inventory[id])
+	var serialized_base_talents: Dictionary = village.get("base_talent_levels", {})
+	for id: String in serialized_base_talents:
+		state.base_talent_levels[id] = int(serialized_base_talents[id])
 	var hero: Dictionary = data.get("hero", {})
 	state.hero_hp_level = int(hero.get("hp_level", 0))
 	state.hero_atk_level = int(hero.get("atk_level", 0))
 	var serialized_equipment: Dictionary = hero.get("equipment", {})
 	for slot: String in serialized_equipment:
 		state.equipment[slot] = str(serialized_equipment[slot])
+	state.hero_xp = int(hero.get("xp", 0))
+	var serialized_hero_talents: Dictionary = hero.get("talent_levels", {})
+	for id: String in serialized_hero_talents:
+		state.hero_talent_levels[id] = int(serialized_hero_talents[id])
 	var perma: Dictionary = data.get("perma", {})
 	var cleared: Dictionary = perma.get("dungeons_cleared", {})
 	for id: String in cleared:

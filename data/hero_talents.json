@@ -1,0 +1,68 @@
+[
+  {
+    "id": "robuster_anfang",
+    "display_name": "Robuster Anfang",
+    "flavor": "Wer schon so oft hingefallen ist, steht auch öfter wieder auf.",
+    "effect": "hero_hp_mult",
+    "amount_per_level": 0.08,
+    "max_level": 3,
+    "base_cost_points": 1,
+    "cost_growth_points": 1,
+    "requires": ""
+  },
+  {
+    "id": "fester_griff",
+    "display_name": "Fester Griff",
+    "flavor": "Den Knüppel hält er inzwischen, ohne draufzuschauen.",
+    "effect": "hero_atk_mult",
+    "amount_per_level": 0.06,
+    "max_level": 3,
+    "base_cost_points": 1,
+    "cost_growth_points": 1,
+    "requires": ""
+  },
+  {
+    "id": "alte_kaempfernarben",
+    "display_name": "Alte Kämpfernarben",
+    "flavor": "Jede Narbe eine Geschichte – und jede Geschichte macht zäher.",
+    "effect": "hero_hp_mult",
+    "amount_per_level": 0.12,
+    "max_level": 2,
+    "base_cost_points": 2,
+    "cost_growth_points": 2,
+    "requires": "robuster_anfang"
+  },
+  {
+    "id": "gezielte_schlaege",
+    "display_name": "Gezielte Schläge",
+    "flavor": "Er trifft nicht öfter – nur härter, dort wo es zählt.",
+    "effect": "hero_atk_mult",
+    "amount_per_level": 0.1,
+    "max_level": 2,
+    "base_cost_points": 2,
+    "cost_growth_points": 2,
+    "requires": "fester_griff"
+  },
+  {
+    "id": "veteran_des_kellers",
+    "display_name": "Veteran des Kellers",
+    "flavor": "Ratten, Kröten, der eigene Schatten – nichts überrascht ihn mehr.",
+    "effect": "hero_hp_mult",
+    "amount_per_level": 0.2,
+    "max_level": 1,
+    "base_cost_points": 4,
+    "cost_growth_points": 0,
+    "requires": "alte_kaempfernarben"
+  },
+  {
+    "id": "klingenmeister",
+    "display_name": "Klingenmeister (im Geiste)",
+    "flavor": "Eine echte Klinge besitzt er nicht. Den Schwung hat er trotzdem drauf.",
+    "effect": "hero_atk_mult",
+    "amount_per_level": 0.18,
+    "max_level": 1,
+    "base_cost_points": 4,
+    "cost_growth_points": 0,
+    "requires": "gezielte_schlaege"
+  }
+]

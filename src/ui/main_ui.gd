@@ -56,6 +56,14 @@ var _equipment_label: Label
 var _upgrade_buttons := {}  # upgrade_id -> Button
 var _upgrade_rows := {}  # upgrade_id -> Control
 
+var _base_talent_buttons := {}  # talent_id -> Button
+var _base_talent_rows := {}  # talent_id -> Control
+var _base_talent_points_label: Label
+
+var _hero_talent_buttons := {}  # talent_id -> Button
+var _hero_talent_rows := {}  # talent_id -> Control
+var _hero_talent_points_label: Label
+
 var _tavern_section: VBoxContainer
 var _tavern_count_label: Label
 var _tale_rows := {}  # tale_id -> Control
@@ -166,6 +174,29 @@ func _build_ui() -> void:
 		_upgrade_buttons[def.id] = upgrade_button
 		_upgrade_rows[def.id] = row
 
+	# Dorf-Talente (Base-Baum): gefüttert durch Idle-Fortschritt,
+	# resettet beim Prestige. "requires" lässt Folgeknoten erst nach
+	# dem Vorgänger auftauchen.
+	vbox.add_child(HSeparator.new())
+	vbox.add_child(_section_label("Dorf-Talente"))
+	_base_talent_points_label = Label.new()
+	_base_talent_points_label.modulate = Color(1, 1, 1, 0.7)
+	vbox.add_child(_base_talent_points_label)
+	for def in ContentDB.base_talents():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var talent_button := Button.new()
+		talent_button.custom_minimum_size = Vector2(320, 0)
+		talent_button.pressed.connect(_on_base_talent_pressed.bind(def.id))
+		row.add_child(talent_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		vbox.add_child(row)
+		_base_talent_buttons[def.id] = talent_button
+		_base_talent_rows[def.id] = row
+
 	# Beutestand: Trophäen aus Runs verkaufen. Erscheint erst, wenn es
 	# etwas zu verwalten gibt.
 	_loot_section = VBoxContainer.new()
@@ -235,6 +266,28 @@ func _build_ui() -> void:
 	_train_atk_button.pressed.connect(func() -> void: Game.train("atk"))
 	train_row.add_child(_train_atk_button)
 	vbox.add_child(train_row)
+
+	# Helden-Talente (Hero-Baum): gefüttert durch Dungeon-Erfahrung,
+	# resettet beim Prestige.
+	vbox.add_child(HSeparator.new())
+	vbox.add_child(_section_label("Helden-Talente"))
+	_hero_talent_points_label = Label.new()
+	_hero_talent_points_label.modulate = Color(1, 1, 1, 0.7)
+	vbox.add_child(_hero_talent_points_label)
+	for def in ContentDB.hero_talents():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var talent_button := Button.new()
+		talent_button.custom_minimum_size = Vector2(320, 0)
+		talent_button.pressed.connect(_on_hero_talent_pressed.bind(def.id))
+		row.add_child(talent_button)
+		var flavor := Label.new()
+		flavor.text = def.flavor
+		flavor.modulate = Color(1, 1, 1, 0.6)
+		row.add_child(flavor)
+		vbox.add_child(row)
+		_hero_talent_buttons[def.id] = talent_button
+		_hero_talent_rows[def.id] = row
 
 	# Klassen: Versionen der Sage. Erscheint, sobald mehr als die
 	# Starter-Klasse existiert (also sobald eine zweite freigeschaltet
@@ -477,6 +530,27 @@ func _refresh() -> void:
 		]
 		upgrade_button.disabled = gold.lt(BigNum.from_float(def.cost))
 
+	# Dorf-Talente: "requires" lässt Folgeknoten erst nach dem Vorgänger
+	# auftauchen; am Stufenlimit bleibt der Knoten sichtbar, aber gesperrt.
+	_base_talent_points_label.text = "Talentpunkte: %d verfügbar (insgesamt %d verdient)" % [
+		Game.state.base_talent_points_available(), Game.state.base_talent_points_earned(),
+	]
+	for def in ContentDB.base_talents():
+		var talent_row: Control = _base_talent_rows[def.id]
+		talent_row.visible = def.requires.is_empty() or Game.state.base_talent_level(def.requires) > 0
+		if not talent_row.visible:
+			continue
+		var talent_button: Button = _base_talent_buttons[def.id]
+		var level := Game.state.base_talent_level(def.id)
+		if level >= def.max_level:
+			talent_button.text = "%s – Stufe %d/%d (Maximum)" % [def.display_name, level, def.max_level]
+			talent_button.disabled = true
+		else:
+			talent_button.text = "%s (Stufe %d/%d) – %d Talentpunkte" % [
+				def.display_name, level, def.max_level, def.cost_for(level),
+			]
+			talent_button.disabled = not Game.state.is_base_talent_available(def)
+
 	# Beutestand: nur Zeilen mit Bestand, Sektion nur wenn nicht leer.
 	var any_loot := false
 	for def in ContentDB.items():
@@ -544,6 +618,27 @@ func _refresh() -> void:
 	_train_atk_button.text = "Härter zuschlagen (+%s) – %s Gold" % [BigNum.from_float(Balance.HERO_ATK_PER_TRAINING).format(), atk_cost.format()]
 	_train_hp_button.disabled = gold.lt(hp_cost)
 	_train_atk_button.disabled = gold.lt(atk_cost)
+
+	# Helden-Talente: gleiches Muster wie Dorf-Talente, gefüttert durch
+	# Dungeon-Erfahrung statt Lifetime-Gold.
+	_hero_talent_points_label.text = "Talentpunkte: %d verfügbar (insgesamt %d verdient)" % [
+		Game.state.hero_talent_points_available(), Game.state.hero_talent_points_earned(),
+	]
+	for def in ContentDB.hero_talents():
+		var talent_row: Control = _hero_talent_rows[def.id]
+		talent_row.visible = def.requires.is_empty() or Game.state.hero_talent_level(def.requires) > 0
+		if not talent_row.visible:
+			continue
+		var talent_button: Button = _hero_talent_buttons[def.id]
+		var level := Game.state.hero_talent_level(def.id)
+		if level >= def.max_level:
+			talent_button.text = "%s – Stufe %d/%d (Maximum)" % [def.display_name, level, def.max_level]
+			talent_button.disabled = true
+		else:
+			talent_button.text = "%s (Stufe %d/%d) – %d Talentpunkte" % [
+				def.display_name, level, def.max_level, def.cost_for(level),
+			]
+			talent_button.disabled = not Game.state.is_hero_talent_available(def)
 
 	var run_active := Game.is_run_active()
 
@@ -778,6 +873,14 @@ func _on_craft_pressed(recipe_id: String) -> void:
 
 func _on_upgrade_pressed(upgrade_id: String) -> void:
 	Game.buy_generator_upgrade(upgrade_id)
+
+
+func _on_base_talent_pressed(talent_id: String) -> void:
+	Game.buy_base_talent(talent_id)
+
+
+func _on_hero_talent_pressed(talent_id: String) -> void:
+	Game.buy_hero_talent(talent_id)
 
 
 func _on_run_finished(run_result: Dictionary) -> void:

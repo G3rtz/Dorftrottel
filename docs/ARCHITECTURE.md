@@ -331,12 +331,45 @@ Kampfmechanik.
 - ContentDB validiert Querverweise (Freischalt-Erzählungen + Start-
   Segen existieren) und dass es eine Starter-Klasse gibt.
 
+## Talentbäume (GDD §3): Hero und Dorf
+
+Zwei separate Bäume neben dem Perma-Baum, beide bezahlt mit eigenen,
+**abgeleiteten statt gespeicherten** Punktewährungen
+(`points_available = points_earned - points_spent`, analog
+`pending_fragments()`):
+
+- **Hero-Baum** (`data/hero_talents.json`): gefüttert von
+  Dungeon-Erfahrung. Jeder erkämpfte Raum gibt XP, ein Sieg einen Bonus
+  obendrauf (`Balance.HERO_XP_PER_ROOM` / `HERO_XP_VICTORY_BONUS`,
+  verbucht in `bank_run_result()`); `HERO_XP_PER_POINT` XP ergeben einen
+  Talentpunkt. Effekte (`hero_hp_mult`, `hero_atk_mult`) docken an
+  `hero_stats()` an, addieren sich dort zum Perma-Bonus desselben Namens.
+- **Dorf-Baum** (`data/base_talents.json`): gefüttert vom Lifetime-Gold
+  der laufenden Sage – dieselbe sublineare Idee wie bei Liedfragmenten,
+  aber mit niedrigerer Schwelle (`Balance.BASE_TALENT_POINT_GOLD`),
+  damit der kleine Baum schon vor dem ersten Prestige etwas zu tun gibt.
+  Weil Talentpunkte Spiellogik sind, nicht nur Anzeige, wird die
+  sqrt-Formel über eine gebundene Suche mit `BigNum.lt()`-Vergleichen
+  ausgewertet statt über `to_float()` – die BigNum-Konvention erlaubt
+  verlustbehaftete Floats nirgends in einer Kaufentscheidung. Effekte
+  (`gold_mult`, `work_mult`) docken an `production_per_second()` bzw.
+  `manual_work_amount()` an.
+
+Beide Bäume teilen sich die Form `TalentDef` (`src/core/talent_def.gd`):
+mehrstufig wie ein Perma-Upgrade, mit `requires`, das Knoten zu einer
+Kette verbindet – ohne mindestens eine Stufe im Vorgänger bleibt ein
+Knoten gesperrt (`is_*_talent_available()`). Die "beschleunigen, nie
+skippen"-Regel ist wie beim Perma-Baum technisch erzwungen: `validate()`
+nimmt eine Effekt-Whitelist entgegen, die je Baum unterschiedlich ist
+(`ContentDB.HERO_TALENT_EFFECTS` / `BASE_TALENT_EFFECTS`), sodass ein
+Hero-Talent keinen Dorf-Effekt referenzieren kann und umgekehrt.
+
+Beide Bäume resetten beim Prestige (`hero_xp`, `hero_talent_levels` in
+der hero-Sektion; `base_talent_levels` in der village-Sektion) – anders
+als der Perma-Baum, der überlebt.
+
 ## Bewusst noch nicht gebaut
 
-- **Talentbäume:** Multiplikatoren docken an `GeneratorDef.rate_for()` /
-  `production_per_second()` (Idle-Seite) bzw. `hero_stats()` (Run-Seite)
-  an – das sind bereits die einzigen Orte, an denen Raten und Werte
-  berechnet werden.
 - **Crafting/Rezepte:** Drops aus Runs landen in der perma-Sektion,
   Material kommt aus dem Dorf – die "goldene Regel" der
   Loop-Verzahnung. Training ist nur der Platzhalter dafür.

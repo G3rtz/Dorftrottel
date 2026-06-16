@@ -1,0 +1,68 @@
+[
+  {
+    "id": "fruehe_voegel",
+    "display_name": "Früher Vogel",
+    "flavor": "Wer als Erster am Marktplatz steht, bekommt den besten Preis.",
+    "effect": "gold_mult",
+    "amount_per_level": 0.05,
+    "max_level": 3,
+    "base_cost_points": 1,
+    "cost_growth_points": 1,
+    "requires": ""
+  },
+  {
+    "id": "fleiss_lernt_man",
+    "display_name": "Fleiß lernt man",
+    "flavor": "Sogar Betteln ist eine Übungssache.",
+    "effect": "work_mult",
+    "amount_per_level": 0.15,
+    "max_level": 3,
+    "base_cost_points": 1,
+    "cost_growth_points": 1,
+    "requires": ""
+  },
+  {
+    "id": "marktkenntnis",
+    "display_name": "Marktkenntnis",
+    "flavor": "Er weiß inzwischen, welcher Krämer ehrlich rechnet.",
+    "effect": "gold_mult",
+    "amount_per_level": 0.1,
+    "max_level": 2,
+    "base_cost_points": 2,
+    "cost_growth_points": 2,
+    "requires": "fruehe_voegel"
+  },
+  {
+    "id": "kraftgriff",
+    "display_name": "Kraftgriff",
+    "flavor": "Die Schaufel ist dieselbe. Der Rücken ist es nicht mehr.",
+    "effect": "work_mult",
+    "amount_per_level": 0.2,
+    "max_level": 2,
+    "base_cost_points": 2,
+    "cost_growth_points": 2,
+    "requires": "fleiss_lernt_man"
+  },
+  {
+    "id": "dorfwirtschaft",
+    "display_name": "Dorfwirtschaft",
+    "flavor": "Das ganze Dorf rechnet jetzt ein bisschen mit ihm.",
+    "effect": "gold_mult",
+    "amount_per_level": 0.15,
+    "max_level": 1,
+    "base_cost_points": 4,
+    "cost_growth_points": 0,
+    "requires": "marktkenntnis"
+  },
+  {
+    "id": "schwielige_haende",
+    "display_name": "Schwielige Hände",
+    "flavor": "Blasen hatte er auch mal. Das ist lange her.",
+    "effect": "work_mult",
+    "amount_per_level": 0.3,
+    "max_level": 1,
+    "base_cost_points": 4,
+    "cost_growth_points": 0,
+    "requires": "kraftgriff"
+  }
+]
